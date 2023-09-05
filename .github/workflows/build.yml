@@ -1,0 +1,61 @@
+name: Build
+
+on:
+  push:
+    branches: ["main"]
+    tags-ignore:
+      - "**"
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - "x86_64-unknown-linux-musl"
+          - "aarch64-unknown-linux-musl"
+          - "x86_64-pc-windows-msvc"
+          - "x86_64-apple-darwin"
+          - "aarch64-apple-darwin"
+        include:
+          - target: "x86_64-unknown-linux-musl"
+            runner: ubuntu-latest
+          - target: "aarch64-unknown-linux-musl"
+            runner: ubuntu-latest
+          - target: "x86_64-pc-windows-msvc"
+            runner: windows-latest
+          - target: "x86_64-apple-darwin"
+            runner: macos-latest
+          - target: "aarch64-apple-darwin"
+            runner: macos-latest
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        id: build
+        run: ./build.sh
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: am-${{ matrix.target }}
+          path: ${{ steps.build.outputs.path }}
