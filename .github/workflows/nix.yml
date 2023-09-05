@@ -8,19 +8,7 @@ on:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - linux
-          - darwin
-        include:
-          - platform: linux
-            runner: ubuntu-latest
-          - platform: darwin
-            runner: macos-latest
-
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-latest
 
     steps:
       - name: Checkout repository
