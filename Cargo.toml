@@ -1,6 +1,6 @@
 [package]
 name = "am"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Ryan Cao <hello@ryanccn.dev>"]
 
@@ -9,6 +9,5 @@ anyhow = "1.0.75"
 clap = { version = "4.4.2", features = ["derive"] }
 clap_complete = "4.4.0"
 crossterm = "0.27.0"
-discord-rich-presence = "0.2.3"
 owo-colors = "3.5.0"
 tokio = { version = "1.32.0", features = ["full"] }
