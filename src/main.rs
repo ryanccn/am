@@ -77,57 +77,58 @@ struct Playlist {
     duration: i32,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     check_os()?;
 
     let args = Cli::parse();
 
     match args.command {
         Commands::Play => {
-            ipc::tell_music("play")?;
+            ipc::tell_music("play").await?;
             println!("{} playing music", "Started".green());
         }
         Commands::Pause => {
-            ipc::tell_music("pause")?;
+            ipc::tell_music("pause").await?;
             println!("{} playing music", "Stopped".red());
         }
         Commands::Toggle => {
-            let player_state = ipc::tell_music("player state")?;
+            let player_state = ipc::tell_music("player state").await?;
 
             if player_state == "paused" {
-                ipc::tell_music("play")?;
+                ipc::tell_music("play").await?;
                 println!("{} playing music", "Started".green());
             } else {
-                ipc::tell_music("pause")?;
+                ipc::tell_music("pause").await?;
                 println!("{} playing music", "Stopped".red());
             }
         }
 
         Commands::Back => {
-            ipc::tell_music("back track")?;
+            ipc::tell_music("back track").await?;
             println!("{} to current or previous track", "Back tracked".cyan());
         }
 
         Commands::Forward => {
-            ipc::tell_music("fast forward")?;
+            ipc::tell_music("fast forward").await?;
             println!("{} in current track", "Fast forwarded".cyan());
         }
         Commands::Next => {
-            ipc::tell_music("next track")?;
+            ipc::tell_music("next track").await?;
             println!("{} to next track", "Advanced".magenta());
         }
 
         Commands::Previous => {
-            ipc::tell_music("previous track")?;
+            ipc::tell_music("previous track").await?;
             println!("{} to previous track", "Returned".magenta());
         }
         Commands::Resume => {
-            ipc::tell_music("resume")?;
+            ipc::tell_music("resume").await?;
             println!("{} normal playback", "Resumed".magenta());
         }
 
         Commands::Now { watch } => loop {
-            let player_state = ipc::tell_music("player state")?;
+            let player_state = ipc::tell_music("player state").await?;
 
             if watch {
                 execute!(stdout(), terminal::EnterAlternateScreen)?;
@@ -136,27 +137,36 @@ fn main() -> Result<()> {
             if player_state == "stopped" {
                 println!("Playback is {}", "stopped".red());
             } else {
-                let track_name = ipc::tell_music("get {name} of current track")?;
-                let track_album = ipc::tell_music("get {album} of current track")?;
-                let track_artist = ipc::tell_music("get {artist} of current track")?;
+                let (
+                    track_name,
+                    track_album,
+                    track_artist,
+                    track_duration_str,
+                    player_position_str,
+                    playlist_name,
+                ) = tokio::try_join!(
+                    ipc::tell_music("get {name} of current track"),
+                    ipc::tell_music("get {album} of current track"),
+                    ipc::tell_music("get {artist} of current track"),
+                    ipc::tell_music("get {duration} of current track"),
+                    ipc::tell_music("player position"),
+                    ipc::tell_music("get {name} of current playlist")
+                )?;
 
-                let player_position_str = ipc::tell_music("player position")?;
+                let track_duration = track_duration_str.parse::<f32>()?;
                 let player_position = player_position_str.parse::<f32>()?;
 
-                let playlist_name = ipc::tell_music("get {name} of current playlist").ok();
                 let mut playlist: Option<Playlist> = None;
 
-                if let Some(playlist_name) = &playlist_name {
-                    if !playlist_name.is_empty() {
-                        let playlist_duration =
-                            ipc::tell_music("get {duration} of current playlist")?
-                                .parse::<i32>()?;
+                if !playlist_name.is_empty() {
+                    let playlist_duration = ipc::tell_music("get {duration} of current playlist")
+                        .await?
+                        .parse::<i32>()?;
 
-                        playlist = Some(Playlist {
-                            name: playlist_name.to_string(),
-                            duration: playlist_duration,
-                        });
-                    }
+                    playlist = Some(Playlist {
+                        name: playlist_name.to_string(),
+                        duration: playlist_duration,
+                    });
                 }
 
                 if watch {
@@ -169,9 +179,10 @@ fn main() -> Result<()> {
 
                 println!("{}", track_name.bold());
                 println!(
-                    "{} {}",
+                    "{} {}/{}",
                     format::format_player_state(&player_state)?,
-                    format::format_duration(&player_position)
+                    format::format_duration(&player_position, false),
+                    format::format_duration(&track_duration, true),
                 );
                 println!("{} · {}", track_artist.blue(), track_album.magenta());
 
