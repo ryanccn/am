@@ -47,4 +47,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: am-${{ matrix.target }}
-          path: ./target/release/am
+          path: ./target/${{ matrix.target }}/am
