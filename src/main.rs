@@ -143,7 +143,7 @@ fn main() -> Result<()> {
                 let player_position_str = ipc::tell_music("player position")?;
                 let player_position = player_position_str.parse::<f32>()?;
 
-                let playlist_name = Some(ipc::tell_music("get {name} of current playlist")?);
+                let playlist_name = ipc::tell_music("get {name} of current playlist").ok();
                 let mut playlist: Option<Playlist> = None;
 
                 if let Some(playlist_name) = &playlist_name {
