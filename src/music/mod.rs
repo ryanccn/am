@@ -2,7 +2,11 @@ use tokio::process::Command;
 
 use anyhow::Result;
 
-pub async fn tell_music(applescript: &str) -> Result<String> {
+mod metadata;
+
+pub use metadata::*;
+
+pub async fn tell(applescript: &str) -> Result<String> {
     let mut osascript_cmd = Command::new("osascript");
     osascript_cmd.arg("-e").arg("tell application \"Music\"");
     osascript_cmd.arg("-e").arg(applescript);

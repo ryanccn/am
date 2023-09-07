@@ -1,15 +1,15 @@
-use std::{io::stdout, thread::sleep, time::Duration};
+use std::io::stdout;
 
 use anyhow::{anyhow, Result};
 
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{generate, Shell};
-
-use crossterm::{cursor, execute, terminal};
 use owo_colors::OwoColorize;
 
+mod cmd;
 mod format;
-mod ipc;
+mod music;
+mod rich_presence;
 
 /// Minimal Apple Music CLI
 #[derive(Parser, Debug)]
@@ -53,6 +53,9 @@ enum Commands {
     #[command(visible_aliases = ["prev"])]
     Previous,
 
+    /// Connect to Discord rich presence
+    Discord,
+
     /// Generate shell completions
     Completions {
         /// Shell
@@ -72,11 +75,6 @@ fn check_os() -> Result<()> {
     Ok(())
 }
 
-struct Playlist {
-    name: String,
-    duration: i32,
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     check_os()?;
@@ -85,128 +83,56 @@ async fn main() -> Result<()> {
 
     match args.command {
         Commands::Play => {
-            ipc::tell_music("play").await?;
+            music::tell("play").await?;
             println!("{} playing music", "Started".green());
         }
         Commands::Pause => {
-            ipc::tell_music("pause").await?;
+            music::tell("pause").await?;
             println!("{} playing music", "Stopped".red());
         }
         Commands::Toggle => {
-            let player_state = ipc::tell_music("player state").await?;
+            let player_state = music::tell("player state").await?;
 
             if player_state == "paused" {
-                ipc::tell_music("play").await?;
+                music::tell("play").await?;
                 println!("{} playing music", "Started".green());
             } else {
-                ipc::tell_music("pause").await?;
+                music::tell("pause").await?;
                 println!("{} playing music", "Stopped".red());
             }
         }
 
         Commands::Back => {
-            ipc::tell_music("back track").await?;
+            music::tell("back track").await?;
             println!("{} to current or previous track", "Back tracked".cyan());
         }
 
         Commands::Forward => {
-            ipc::tell_music("fast forward").await?;
+            music::tell("fast forward").await?;
             println!("{} in current track", "Fast forwarded".cyan());
         }
         Commands::Next => {
-            ipc::tell_music("next track").await?;
+            music::tell("next track").await?;
             println!("{} to next track", "Advanced".magenta());
         }
 
         Commands::Previous => {
-            ipc::tell_music("previous track").await?;
+            music::tell("previous track").await?;
             println!("{} to previous track", "Returned".magenta());
         }
         Commands::Resume => {
-            ipc::tell_music("resume").await?;
+            music::tell("resume").await?;
             println!("{} normal playback", "Resumed".magenta());
         }
 
-        Commands::Now { watch } => loop {
-            let player_state = ipc::tell_music("player state").await?;
+        Commands::Now { watch } => {
+            cmd::now(watch).await?;
+        }
 
-            if watch {
-                execute!(stdout(), terminal::EnterAlternateScreen)?;
-            }
+        Commands::Discord => {
+            cmd::discord().await?;
+        }
 
-            if player_state == "stopped" {
-                println!("Playback is {}", "stopped".red());
-            } else {
-                let (
-                    track_name,
-                    track_album,
-                    track_artist,
-                    track_duration_str,
-                    player_position_str,
-                    playlist_name,
-                ) = tokio::try_join!(
-                    ipc::tell_music("get {name} of current track"),
-                    ipc::tell_music("get {album} of current track"),
-                    ipc::tell_music("get {artist} of current track"),
-                    ipc::tell_music("get {duration} of current track"),
-                    ipc::tell_music("player position"),
-                    ipc::tell_music("get {name} of current playlist")
-                )?;
-
-                let track_duration = track_duration_str.parse::<f32>()?;
-                let player_position = player_position_str.parse::<f32>()?;
-
-                let mut playlist: Option<Playlist> = None;
-
-                if !playlist_name.is_empty() {
-                    let playlist_duration = ipc::tell_music("get {duration} of current playlist")
-                        .await?
-                        .parse::<i32>()?;
-
-                    playlist = Some(Playlist {
-                        name: playlist_name.to_string(),
-                        duration: playlist_duration,
-                    });
-                }
-
-                if watch {
-                    execute!(
-                        stdout(),
-                        cursor::MoveTo(0, 0),
-                        terminal::Clear(terminal::ClearType::All)
-                    )?;
-                }
-
-                println!("{}", track_name.bold());
-                println!(
-                    "{} {}/{}",
-                    format::format_player_state(&player_state)?,
-                    format::format_duration(&player_position, false),
-                    format::format_duration(&track_duration, true),
-                );
-                println!("{} · {}", track_artist.blue(), track_album.magenta());
-
-                if let Some(playlist) = playlist {
-                    println!(
-                        "{}",
-                        format!(
-                            "Playlist: {} ({})",
-                            playlist.name,
-                            format::format_playlist_duration(&playlist.duration)
-                        )
-                        .dimmed()
-                    );
-                } else {
-                    println!("{}", "No playlist".dimmed());
-                }
-            }
-
-            if watch {
-                sleep(Duration::from_millis(500));
-            } else {
-                break;
-            }
-        },
         Commands::Completions { shell } => {
             let cli = &mut Cli::command();
             generate(shell, cli, cli.get_name().to_string(), &mut stdout());

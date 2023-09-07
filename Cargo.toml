@@ -6,8 +6,14 @@ authors = ["Ryan Cao <hello@ryanccn.dev>"]
 
 [dependencies]
 anyhow = "1.0.75"
+chrono = "0.4.29"
 clap = { version = "4.4.2", features = ["derive"] }
 clap_complete = "4.4.0"
 crossterm = "0.27.0"
 owo-colors = "3.5.0"
+reqwest = { version = "0.11.20", features = ["rustls-tls", "serde_json", "json", "brotli"], default-features = false }
+serde = { version = "1.0.188", features = ["derive"] }
+serde_json = "1.0.105"
 tokio = { version = "1.32.0", features = ["full"] }
+url-escape = "0.1.1"
+uuid = { version = "1.4.1", features = ["v4"] }

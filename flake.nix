@@ -61,5 +61,51 @@
         inherit (prev.darwin) IOKit;
       };
     };
+
+    homeManagerModules.default = {
+      lib,
+      config,
+      pkgs,
+      ...
+    }: let
+      cfg = config.services.am-discord-rich-presence;
+      inherit (lib) mkEnableOption mkIf mkOption mkPackageOption types;
+    in {
+      options.services.am-discord-rich-presence = {
+        enable = mkEnableOption "am-discord-rich-presence";
+        package = mkPackageOption pkgs "am" {};
+
+        logFile = mkOption {
+          type = types.nullOr types.path;
+          default = null;
+          description = ''
+            Path to where am's Discord presence will store its log file
+          '';
+          example = ''''${config.xdg.cacheHome}/am-discord-rich-presence.log'';
+        };
+      };
+
+      config = mkIf cfg.enable {
+        assertions = [
+          (lib.hm.assertions.assertPlatform
+            "launchd.agents.am-discord-rich-presence"
+            pkgs
+            lib.platforms.darwin)
+        ];
+
+        launchd.agents.am-discord-rich-presence = {
+          enable = true;
+
+          config = {
+            ProgramArguments = ["${lib.getExe cfg.package}" "discord"];
+            KeepAlive = true;
+            RunAtLoad = true;
+
+            StandardOutPath = cfg.logFile;
+            StandardErrorPath = cfg.logFile;
+          };
+        };
+      };
+    };
   };
 }
