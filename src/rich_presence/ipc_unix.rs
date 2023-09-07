@@ -93,7 +93,7 @@ impl DiscordIpc for DiscordIpcClient {
 
     fn close(&mut self) -> Result<()> {
         let data = json!({});
-        if self.send(data, 2).is_ok() {}
+        self.send(data, 2)?;
 
         let socket = self.socket.as_mut().unwrap();
 

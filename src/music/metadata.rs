@@ -78,10 +78,7 @@ pub async fn get_metadata(
         .ok_or(anyhow!("Could not obtain artist to query with"))?;
     let artist_key = encode_component(&artist_key_danger);
 
-    let id: String;
-    let album_artwork: String;
     let mut artist_artwork: Option<String> = None;
-    let share_url: String;
 
     let (song_resp, artist_resp) = tokio::try_join!(
         client.get(format!("https://tools.applemediaservices.com/api/apple-media/music/US/search.json?types=songs&limit=1&term={song_key}")).send(),
@@ -97,15 +94,15 @@ pub async fn get_metadata(
         .first()
         .ok_or(anyhow!("Could not obtain song metadata"))?;
 
-    id = song_data.id.clone();
-    album_artwork = song_data
+    let id: String = song_data.id.clone();
+    let album_artwork: String = song_data
         .attributes
         .artwork
         .url
         .clone()
         .replace("{w}", "512")
         .replace("{h}", "512");
-    share_url = song_data.attributes.url.clone();
+    let share_url: String = song_data.attributes.url.clone();
 
     let artist_data = artist_resp_data.artists.data.first();
 
