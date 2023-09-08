@@ -1,26 +1,53 @@
-# am
+# `am`
 
-Minimal Apple Music CLI.
+A beautiful and feature-packed Apple Music CLI!
 
-```console
-Minimal Apple Music CLI
+Written in [Rust](https://www.rust-lang.org/).
 
-Usage: am <COMMAND>
+## Installation
 
-Commands:
-  now       Show now playing
-  play      Play the current track
-  pause     Pause playback
-  toggle    Toggle playing status [aliases: p]
-  resume    Disable fast forward/rewind and resume playback
-  back      Reposition to beginning of current track or go to previous track if already at start of current track
-  forward   Skip forward in the current track
-  next      Advance to the next track in the current playlist
-  previous  Return to the previous track in the current playlist [aliases: prev]
-  help      Print this message or the help of the given subcommand(s)
+### Nix (recommended)
 
-Options:
-  -h, --help     Print help
-  -V, --version  Print version
+This GitHub repository contains a flake. Add `github:ryanccn/am` to your flake inputs:
 
+```nix
+{
+  inputs = {
+    # ...other inputs
+    am = {
+      url = "github:ryanccn/am";
+      inputs.nixpkgs.follows = "nixpkgs";
+    }
+  }
+}
+```
+
+Then, use the overlay from `overlays.default` and add `am` to your packages. Alternatively, you can use `packages.default` directly.
+
+### Manual download
+
+Download the [`aarch64`](https://github.com/ryanccn/am/releases/latest/download/am-aarch64-apple-darwin) (Apple Silicon) or the [`x86_64`](https://github.com/ryanccn/am/releases/latest/download/am-x86_64-apple-darwin) (Intel) version of the binary.
+
+Dequarantine them with `xattr -d com.apple.quarantine <path>` and make them executable with `chmod +x <path>`.
+
+## Features
+
+- Beautiful now playing display
+- Playback controls (play, pause, toggle, resume, back, forward, next, previous)
+- Discord rich presence
+- Shell completions
+
+## Home Manager module
+
+This repository's flake also provides a Home Manager module at `homeManagerModules.default`. This module provides a service `am-discord-rich-presence` that you can enable so that `am`'s Discord rich presence runs in the background as long as you are logged in.
+
+```nix
+{
+  services.am-discord-rich-presence = {
+    enable = true;
+
+    # optional
+    # logFile = "${config.xdg.cacheHome}/am-discord-rich-presence.log";
+  }
+}
 ```
