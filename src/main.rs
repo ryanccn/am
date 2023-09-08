@@ -1,6 +1,6 @@
 use std::io::stdout;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{generate, Shell};

@@ -36,21 +36,29 @@ struct SongWithProgress {
 struct ActivityConnection {
     last_song_id: Option<i64>,
     last_position: Option<f64>,
+    is_idle: bool,
 }
 
 async fn get_now_playing() -> Result<SongWithProgress> {
-    let initial_state_str =
+    let initial_state =
         music::tell("get {database id} of current track & {player position, player state}").await?;
-    let mut initial_state = initial_state_str.split(", ");
+
+    if initial_state.is_empty() {
+        return Ok(SongWithProgress {
+            song: None,
+            position: None,
+        });
+    }
+
+    let mut initial_state = initial_state.split(", ");
 
     let song_id = initial_state
         .next()
-        .ok_or(anyhow!("Could not obtain song ID"))?
-        .parse::<i64>()?;
+        .ok_or(anyhow!("Could not obtain song ID"))?;
     let position = initial_state
         .next()
-        .ok_or(anyhow!("Could not obtain player position"))?
-        .parse::<f64>()?;
+        .ok_or(anyhow!("Could not obtain player position"))?;
+
     let state = initial_state
         .next()
         .ok_or(anyhow!("Could not obtain player state"))?;
@@ -61,6 +69,9 @@ async fn get_now_playing() -> Result<SongWithProgress> {
             position: None,
         });
     }
+
+    let song_id = song_id.parse::<i64>()?;
+    let position = position.parse::<f64>()?;
 
     let (name, album, artist, duration_str) = tokio::try_join!(
         music::tell("get {name} of current track"),
@@ -101,80 +112,79 @@ async fn update_presence(
 
     let mut ongoing = false;
 
-    if let Some(last_song_id) = activity.last_song_id {
-        if last_song_id
-            == now
-                .song
-                .clone()
-                .ok_or(anyhow!("Could not obtain song data from result"))?
-                .id
-        {
-            if let Some(last_position) = activity.last_position {
-                if let Some(now_position) = now.position {
-                    if last_position <= now_position {
-                        ongoing = true;
+    if let Some(song) = now.song {
+        if let Some(last_song_id) = activity.last_song_id {
+            if last_song_id == song.id {
+                if let Some(last_position) = activity.last_position {
+                    if let Some(now_position) = now.position {
+                        if last_position <= now_position {
+                            ongoing = true;
+                        }
                     }
                 }
             }
         }
-    }
 
-    if !ongoing {
-        let song = now
-            .song
-            .ok_or(anyhow!("Could not obtain song data from result"))?;
-        let position = now
-            .position
-            .ok_or(anyhow!("Could not obtain position data from result"))?;
+        if !ongoing {
+            let position = now
+                .position
+                .ok_or(anyhow!("Could not obtain position data from result"))?;
 
-        activity.last_position = Some(position);
-        activity.last_song_id = Some(song.id);
+            activity.last_position = Some(position);
+            activity.last_song_id = Some(song.id);
+            activity.is_idle = false;
 
-        println!(
-            "{} {} - {}",
-            "Song updated".blue(),
-            &song.name,
-            &song.artist
-        );
+            println!(
+                "{} {} - {}",
+                "Song updated".blue(),
+                &song.name,
+                &song.artist
+            );
 
-        let now_ts = chrono::offset::Local::now().timestamp();
-        let start_ts = (now_ts as f64) - position;
-        let end_ts = (now_ts as f64) + song.duration - position;
+            let now_ts = chrono::offset::Local::now().timestamp();
+            let start_ts = (now_ts as f64) - position;
+            let end_ts = (now_ts as f64) + song.duration - position;
 
-        let activity_state = format!("{} · {}", &song.artist, &song.album);
+            let activity_state = format!("{} · {}", &song.artist, &song.album);
 
-        let mut activity = Activity::new()
-            .details(song.name.clone())
-            .state(activity_state.clone());
+            let mut activity = Activity::new()
+                .details(song.name.clone())
+                .state(activity_state.clone());
 
-        let mut activity_assets = Assets::new();
+            let mut activity_assets = Assets::new();
 
-        activity_assets = activity_assets
-            .large_image(song.album_artwork.clone())
-            .large_text(song.name.clone());
-
-        if let Some(artist_artwork) = song.artist_artwork {
             activity_assets = activity_assets
-                .small_image(artist_artwork)
-                .small_text(song.artist.clone());
+                .large_image(song.album_artwork.clone())
+                .large_text(song.name.clone());
+
+            if let Some(artist_artwork) = song.artist_artwork {
+                activity_assets = activity_assets
+                    .small_image(artist_artwork)
+                    .small_text(song.artist.clone());
+            }
+
+            activity = activity.assets(activity_assets);
+            activity = activity.timestamps(
+                Timestamps::new()
+                    .start(start_ts.floor() as i64)
+                    .end(end_ts.ceil() as i64),
+            );
+
+            activity = activity.buttons(vec![
+                Button::new("Listen on Apple Music".to_owned(), song.share_url.clone()),
+                Button::new(
+                    "View on SongLink".to_owned(),
+                    format!("https://song.link/i/{}", song.share_id),
+                ),
+            ]);
+
+            client.set_activity(activity).await?;
         }
-
-        activity = activity.assets(activity_assets);
-        activity = activity.timestamps(
-            Timestamps::new()
-                .start(start_ts.floor() as i64)
-                .end(end_ts.ceil() as i64),
-        );
-
-        activity = activity.buttons(vec![
-            Button::new("Listen on Apple Music".to_owned(), song.share_url.clone()),
-            Button::new(
-                "View on SongLink".to_owned(),
-                format!("https://song.link/i/{}", song.share_id),
-            ),
-        ]);
-
-        client.set_activity(activity).await?;
+    } else if !activity.is_idle {
+        println!("{} any songs", "Not playing".yellow());
+        activity.last_position = None;
+        activity.last_song_id = None;
+        activity.is_idle = true;
     }
 
     Ok(())
@@ -189,6 +199,7 @@ pub async fn discord() -> Result<()> {
     let mut activity = ActivityConnection {
         last_position: None,
         last_song_id: None,
+        is_idle: false,
     };
 
     let mut intvl = tokio::time::interval(Duration::from_secs(5));
@@ -207,7 +218,7 @@ pub async fn discord() -> Result<()> {
     }
 
     client.close().await?;
-    println!("{} {}", "Shutting down".yellow(), "Discord presence");
+    println!("{} Discord presence", "Shutting down".yellow());
 
     Ok(())
 }
