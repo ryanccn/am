@@ -64,7 +64,7 @@ enum Commands {
     },
 }
 
-#[cfg(not(macos))]
+#[cfg(not(target_os = "macos"))]
 compile_error!("am doesn't work on non-macOS platforms!");
 
 #[tokio::main]
