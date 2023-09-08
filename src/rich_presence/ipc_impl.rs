@@ -2,15 +2,15 @@ use crate::rich_presence::DiscordIpc;
 
 use serde_json::json;
 
-use std::{
-    env::var,
-    io::{Read, Write},
-    net::Shutdown,
-    os::unix::net::UnixStream,
-    path::PathBuf,
+use std::{env::var, path::PathBuf};
+
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::UnixStream,
 };
 
 use anyhow::{anyhow, Result};
+use async_trait::async_trait;
 
 // Environment keys to search for the Discord pipe
 const ENV_KEYS: [&str; 4] = ["XDG_RUNTIME_DIR", "TMPDIR", "TMP", "TEMP"];
@@ -54,16 +54,18 @@ impl DiscordIpcClient {
                 Err(_e) => continue,
             }
         }
+
         PathBuf::from(path)
     }
 }
 
+#[async_trait]
 impl DiscordIpc for DiscordIpcClient {
-    fn connect_ipc(&mut self) -> Result<()> {
+    async fn connect_ipc(&mut self) -> Result<()> {
         for i in 0..10 {
             let path = DiscordIpcClient::get_pipe_pattern().join(format!("discord-ipc-{}", i));
 
-            match UnixStream::connect(&path) {
+            match UnixStream::connect(&path).await {
                 Ok(socket) => {
                     self.socket = Some(socket);
                     return Ok(());
@@ -75,30 +77,30 @@ impl DiscordIpc for DiscordIpcClient {
         Err(anyhow!("Couldn't connect to the Discord IPC socket"))
     }
 
-    fn write(&mut self, data: &[u8]) -> Result<()> {
+    async fn write(&mut self, data: &[u8]) -> Result<()> {
         let socket = self.socket.as_mut().expect("Client not connected");
 
-        socket.write_all(data)?;
+        socket.write_all(data).await?;
 
         Ok(())
     }
 
-    fn read(&mut self, buffer: &mut [u8]) -> Result<()> {
+    async fn read(&mut self, buffer: &mut [u8]) -> Result<()> {
         let socket = self.socket.as_mut().unwrap();
 
-        socket.read_exact(buffer)?;
+        socket.read_exact(buffer).await?;
 
         Ok(())
     }
 
-    fn close(&mut self) -> Result<()> {
+    async fn close(&mut self) -> Result<()> {
         let data = json!({});
-        self.send(data, 2)?;
+        self.send(data, 2).await?;
 
         let socket = self.socket.as_mut().unwrap();
 
-        socket.flush()?;
-        match socket.shutdown(Shutdown::Both) {
+        socket.flush().await?;
+        match socket.shutdown().await {
             Ok(()) => (),
             Err(_err) => (),
         };

@@ -3,6 +3,7 @@ use std::time::Duration;
 use owo_colors::OwoColorize;
 
 use anyhow::{anyhow, Result};
+use tokio::signal::ctrl_c;
 
 use crate::{
     music,
@@ -173,7 +174,7 @@ async fn update_presence(
             ),
         ]);
 
-        client.set_activity(activity)?;
+        client.set_activity(activity).await?;
     }
 
     Ok(())
@@ -181,7 +182,7 @@ async fn update_presence(
 
 pub async fn discord() -> Result<()> {
     let mut client = DiscordIpcClient::new("861702238472241162")?;
-    client.connect()?;
+    client.connect().await?;
 
     println!("{} to Discord", "Connected".green());
 
@@ -193,10 +194,20 @@ pub async fn discord() -> Result<()> {
     let mut intvl = tokio::time::interval(Duration::from_secs(5));
 
     loop {
-        if let Err(err) = update_presence(&mut client, &mut activity).await {
-            eprintln!("{} {}", "Error".red(), err);
+        tokio::select! {
+            _ = intvl.tick() => {
+                if let Err(err) = update_presence(&mut client, &mut activity).await {
+                    eprintln!("{} {}", "Error".red(), err);
+                }
+            }
+            _ = ctrl_c() => {
+                break;
+            }
         }
-
-        intvl.tick().await;
     }
+
+    client.close().await?;
+    println!("{} {}", "Shutting down".yellow(), "Discord presence");
+
+    Ok(())
 }

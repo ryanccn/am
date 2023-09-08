@@ -2,6 +2,7 @@ use crate::rich_presence::{
     activity::Activity,
     pack_unpack::{pack, unpack},
 };
+use async_trait::async_trait;
 use serde_json::{json, Value};
 
 use anyhow::Result;
@@ -10,6 +11,7 @@ use uuid::Uuid;
 /// A client that connects to and communicates with the Discord IPC.
 ///
 /// Implemented via the [`DiscordIpcClient`](struct@crate::rich_presence::DiscordIpcClient) struct.
+#[async_trait]
 pub trait DiscordIpc {
     /// Connects the client to the Discord IPC.
     ///
@@ -27,9 +29,9 @@ pub trait DiscordIpc {
     /// let mut client = crate::rich_presence::new_client("<some client id>")?;
     /// client.connect()?;
     /// ```
-    fn connect(&mut self) -> Result<()> {
-        self.connect_ipc()?;
-        self.send_handshake()?;
+    async fn connect(&mut self) -> Result<()> {
+        self.connect_ipc().await?;
+        self.send_handshake().await?;
 
         Ok(())
     }
@@ -48,15 +50,15 @@ pub trait DiscordIpc {
     /// # Examples
     /// ```
     /// let mut client = crate::rich_presence::new_client("<some client id>")?;
-    /// client.connect()?;
+    /// client.connect().await?;
     ///
-    /// client.close()?;
-    /// client.reconnect()?;
+    /// client.close().await?;
+    /// client.reconnect().await?;
     /// ```
-    fn reconnect(&mut self) -> Result<()> {
-        self.close()?;
-        self.connect_ipc()?;
-        self.send_handshake()?;
+    async fn reconnect(&mut self) -> Result<()> {
+        self.close().await?;
+        self.connect_ipc().await?;
+        self.send_handshake().await?;
 
         Ok(())
     }
@@ -65,7 +67,7 @@ pub trait DiscordIpc {
     fn get_client_id(&self) -> &String;
 
     #[doc(hidden)]
-    fn connect_ipc(&mut self) -> Result<()>;
+    async fn connect_ipc(&mut self) -> Result<()>;
 
     /// Handshakes the Discord IPC.
     ///
@@ -79,16 +81,18 @@ pub trait DiscordIpc {
     /// # Errors
     ///
     /// Returns an `Err` variant if sending the handshake failed.
-    fn send_handshake(&mut self) -> Result<()> {
+    async fn send_handshake(&mut self) -> Result<()> {
         self.send(
             json!({
                 "v": 1,
                 "client_id": self.get_client_id()
             }),
             0,
-        )?;
+        )
+        .await?;
+
         // TODO: Return an Err if the handshake is rejected
-        self.recv()?;
+        self.recv().await?;
 
         Ok(())
     }
@@ -104,20 +108,20 @@ pub trait DiscordIpc {
     /// # Examples
     /// ```
     /// let payload = serde_json::json!({ "field": "value" });
-    /// client.send(payload, 0)?;
+    /// client.send(payload, 0).await?;
     /// ```
-    fn send(&mut self, data: Value, opcode: u8) -> Result<()> {
+    async fn send(&mut self, data: Value, opcode: u8) -> Result<()> {
         let data_string = data.to_string();
         let header = pack(opcode.into(), data_string.len() as u32)?;
 
-        self.write(&header)?;
-        self.write(data_string.as_bytes())?;
+        self.write(&header).await?;
+        self.write(data_string.as_bytes()).await?;
 
         Ok(())
     }
 
     #[doc(hidden)]
-    fn write(&mut self, data: &[u8]) -> Result<()>;
+    async fn write(&mut self, data: &[u8]) -> Result<()>;
 
     /// Receives an opcode and JSON data from the Discord IPC.
     ///
@@ -130,19 +134,19 @@ pub trait DiscordIpc {
     ///
     /// # Examples
     /// ```
-    /// client.connect_ipc()?;
-    /// client.send_handshake()?;
+    /// client.connect_ipc().await?;
+    /// client.send_handshake().await?;
     ///
-    /// println!("{:?}", client.recv()?);
+    /// println!("{:?}", client.recv().await?);
     /// ```
-    fn recv(&mut self) -> Result<(u32, Value)> {
+    async fn recv(&mut self) -> Result<(u32, Value)> {
         let mut header = [0; 8];
 
-        self.read(&mut header)?;
+        self.read(&mut header).await?;
         let (op, length) = unpack(header.to_vec())?;
 
         let mut data = vec![0u8; length as usize];
-        self.read(&mut data)?;
+        self.read(&mut data).await?;
 
         let response = String::from_utf8(data.to_vec())?;
         let json_data = serde_json::from_str::<Value>(&response)?;
@@ -151,7 +155,7 @@ pub trait DiscordIpc {
     }
 
     #[doc(hidden)]
-    fn read(&mut self, buffer: &mut [u8]) -> Result<()>;
+    async fn read(&mut self, buffer: &mut [u8]) -> Result<()>;
 
     /// Sets a Discord activity.
     ///
@@ -163,7 +167,7 @@ pub trait DiscordIpc {
     ///
     /// # Errors
     /// Returns an `Err` variant if sending the payload failed.
-    fn set_activity(&mut self, activity_payload: Activity) -> Result<()> {
+    async fn set_activity(&mut self, activity_payload: Activity) -> Result<()> {
         let data = json!({
             "cmd": "SET_ACTIVITY",
             "args": {
@@ -172,7 +176,7 @@ pub trait DiscordIpc {
             },
             "nonce": Uuid::new_v4().to_string()
         });
-        self.send(data, 1)?;
+        self.send(data, 1).await?;
 
         Ok(())
     }
@@ -183,7 +187,7 @@ pub trait DiscordIpc {
     ///
     /// # Errors
     /// Returns an `Err` variant if sending the payload failed.
-    fn clear_activity(&mut self) -> Result<()> {
+    async fn clear_activity(&mut self) -> Result<()> {
         let data = json!({
             "cmd": "SET_ACTIVITY",
             "args": {
@@ -193,11 +197,11 @@ pub trait DiscordIpc {
             "nonce": Uuid::new_v4().to_string()
         });
 
-        self.send(data, 1)?;
+        self.send(data, 1).await?;
 
         Ok(())
     }
 
     /// Closes the Discord IPC connection. Implementation is dependent on platform.
-    fn close(&mut self) -> Result<()>;
+    async fn close(&mut self) -> Result<()>;
 }

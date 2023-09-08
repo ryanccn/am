@@ -37,6 +37,7 @@ name = "am"
 version = "0.2.1"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "clap",
  "clap_complete",
@@ -130,6 +131,17 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "tokio",
+]
+
+[[package]]
+name = "async-trait"
+version = "0.1.73"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc00ceb34980c03614e35a3a4e218276a0a824e911d07651cd0d858a51e8c0f0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
