@@ -64,21 +64,11 @@ enum Commands {
     },
 }
 
-fn check_os() -> Result<()> {
-    if std::env::consts::OS != "macos" {
-        return Err(anyhow!(
-            "`am` is not supported on {}!",
-            std::env::consts::OS
-        ));
-    }
-
-    Ok(())
-}
+#[cfg(not(macos))]
+compile_error!("am doesn't work on non-macOS platforms!");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    check_os()?;
-
     let args = Cli::parse();
 
     match args.command {
