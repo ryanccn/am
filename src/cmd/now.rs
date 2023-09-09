@@ -43,9 +43,7 @@ async fn update_state(data: &Arc<Mutex<PlaybackState>>) -> Result<()> {
     let player_state = music::tell("player state").await?;
     data.state = player_state.clone();
 
-    if player_state == "stopped" {
-        println!("Playback is {}", "stopped".red());
-    } else {
+    if player_state != "stopped" {
         let (track_id, player_position, playlist_name) = tokio::try_join!(
             music::tell("get {database id} of current track"),
             music::tell("player position"),
@@ -124,10 +122,7 @@ async fn playback_tick(data: &Arc<Mutex<PlaybackState>>, period_ms: f32) -> Resu
 
 const BAR_CHAR: &str = "━";
 fn make_bar(n: f32, width: Option<i32>) -> Result<String> {
-    let width = match width {
-        Some(width) => width,
-        None => 20,
-    };
+    let width = width.unwrap_or(20);
 
     let part_one = (n * (width as f32)).floor() as i32;
     let part_two = width - part_one;
@@ -142,15 +137,6 @@ fn make_bar(n: f32, width: Option<i32>) -> Result<String> {
 async fn update_display(data: &Arc<Mutex<PlaybackState>>, options: &NowOptions) -> Result<()> {
     let data = data.lock().await;
 
-    let position = data
-        .position
-        .clone()
-        .ok_or_else(|| anyhow!("Could not obtain position from shared playback state"))?;
-    let track = data
-        .track
-        .clone()
-        .ok_or_else(|| anyhow!("Could not obtain track data from shared playback state"))?;
-
     if options.watch {
         execute!(
             stdout(),
@@ -159,28 +145,41 @@ async fn update_display(data: &Arc<Mutex<PlaybackState>>, options: &NowOptions) 
         )?;
     }
 
-    println!("{}", track.name.bold());
-    println!(
-        "{} {} {} {}",
-        format::format_player_state(&data.state, !options.no_nerd_fonts)?,
-        format::format_duration(&position, false),
-        make_bar(position / track.duration, options.bar_width)?,
-        format::format_duration(&track.duration, true),
-    );
-    println!("{} · {}", track.artist.blue(), track.album.magenta());
-
-    if let Some(playlist) = &data.playlist {
-        println!(
-            "{}",
-            format!(
-                "Playlist: {} ({})",
-                playlist.name,
-                format::format_playlist_duration(&playlist.duration)
-            )
-            .dimmed()
-        );
+    if data.state == "stopped" {
+        println!("Playback is {}", data.state.red());
     } else {
-        println!("{}", "No playlist".dimmed());
+        let position = data
+            .position
+            .clone()
+            .ok_or_else(|| anyhow!("Could not obtain position from shared playback state"))?;
+        let track = data
+            .track
+            .clone()
+            .ok_or_else(|| anyhow!("Could not obtain track data from shared playback state"))?;
+
+        println!("{}", track.name.bold());
+        println!(
+            "{} {} {} {}",
+            format::format_player_state(&data.state, !options.no_nerd_fonts)?,
+            format::format_duration(&position, false),
+            make_bar(position / track.duration, options.bar_width)?,
+            format::format_duration(&track.duration, true),
+        );
+        println!("{} · {}", track.artist.blue(), track.album.magenta());
+
+        if let Some(playlist) = &data.playlist {
+            println!(
+                "{}",
+                format!(
+                    "Playlist: {} ({})",
+                    playlist.name,
+                    format::format_playlist_duration(&playlist.duration)
+                )
+                .dimmed()
+            );
+        } else {
+            println!("{}", "No playlist".dimmed());
+        }
     }
 
     Ok(())
