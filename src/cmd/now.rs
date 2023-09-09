@@ -178,46 +178,55 @@ pub async fn now(watch: bool) -> Result<()> {
         let shared_data_playback_tick = shared_data.clone();
 
         let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
-        let mut shutdown_rx_1 = shutdown_rx.clone();
-        let mut shutdown_rx_2 = shutdown_rx.clone();
-        let mut shutdown_rx_3 = shutdown_rx.clone();
 
-        let state_task = tokio::spawn(async move {
-            let mut intvl = tokio::time::interval(Duration::from_secs(1));
+        let state_task = tokio::spawn({
+            let mut shutdown_rx = shutdown_rx.clone();
 
-            loop {
-                tokio::select! {
-                    _ = intvl.tick() => if let Err(err) = update_state(&shared_data_state_update).await {
-                        eprintln!("{err}");
-                    },
-                    _ = shutdown_rx_1.changed() => break,
+            async move {
+                let mut intvl = tokio::time::interval(Duration::from_secs(1));
+
+                loop {
+                    tokio::select! {
+                        _ = intvl.tick() => if let Err(err) = update_state(&shared_data_state_update).await {
+                            eprintln!("{err}");
+                        },
+                        _ = shutdown_rx.changed() => break,
+                    }
                 }
             }
         });
 
-        let display_task = tokio::spawn(async move {
-            let mut intvl = tokio::time::interval(Duration::from_millis(250));
+        let display_task = tokio::spawn({
+            let mut shutdown_rx = shutdown_rx.clone();
 
-            loop {
-                tokio::select! {
-                    _ = intvl.tick() => { let _ = update_display(&shared_data, watch).await; }
-                    _ = shutdown_rx_2.changed() => break,
+            async move {
+                let mut intvl = tokio::time::interval(Duration::from_millis(250));
+
+                loop {
+                    tokio::select! {
+                        _ = intvl.tick() => { let _ = update_display(&shared_data, watch).await; }
+                        _ = shutdown_rx.changed() => break,
+                    }
                 }
             }
         });
 
         let playback_tick_period_ms = 250.0;
 
-        let playback_tick_task = tokio::spawn(async move {
-            let mut intvl =
-                tokio::time::interval(Duration::from_millis(playback_tick_period_ms as u64));
+        let playback_tick_task = tokio::spawn({
+            let mut shutdown_rx = shutdown_rx.clone();
 
-            loop {
-                tokio::select! {
-                    _ = intvl.tick() => {
-                        let _ = playback_tick(&shared_data_playback_tick, playback_tick_period_ms).await;
+            async move {
+                let mut intvl =
+                    tokio::time::interval(Duration::from_millis(playback_tick_period_ms as u64));
+
+                loop {
+                    tokio::select! {
+                        _ = intvl.tick() => {
+                            let _ = playback_tick(&shared_data_playback_tick, playback_tick_period_ms).await;
+                        }
+                        _ = shutdown_rx.changed() => break,
                     }
-                    _ = shutdown_rx_3.changed() => break,
                 }
             }
         });
