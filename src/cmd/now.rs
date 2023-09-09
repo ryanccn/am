@@ -169,7 +169,7 @@ async fn update_display(data: &Arc<Mutex<PlaybackState>>, options: &NowOptions) 
                 format!(
                     "Playlist: {} ({})",
                     playlist.name,
-                    format::format_playlist_duration(&playlist.duration)
+                    format::format_duration_plain(&playlist.duration)
                 )
                 .dimmed()
             );

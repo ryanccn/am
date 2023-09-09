@@ -51,7 +51,7 @@ pub fn format_duration(duration_secs: &f32, yellow: bool) -> String {
     str
 }
 
-pub fn format_playlist_duration(duration_secs: &i32) -> String {
+pub fn format_duration_plain(duration_secs: &i32) -> String {
     let mut duration_secs = *duration_secs as f32;
     let mut str = "".to_owned();
     let mut has_started = false;

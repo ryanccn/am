@@ -75,6 +75,26 @@ enum Commands {
 #[cfg(not(target_os = "macos"))]
 compile_error!("am doesn't work on non-macOS platforms!");
 
+async fn concise_now_playing() -> Result<()> {
+    let (name, album, artist, duration) = tokio::try_join!(
+        music::tell("get {name} of current track"),
+        music::tell("get {album} of current track"),
+        music::tell("get {artist} of current track"),
+        music::tell("get {duration} of current track")
+    )?;
+    let duration = duration.parse::<f32>()?;
+
+    println!(
+        "{} {}\n{} · {}",
+        name.bold(),
+        format::format_duration_plain(&(duration as i32)).dimmed(),
+        artist.blue(),
+        album.magenta(),
+    );
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Cli::parse();
@@ -83,10 +103,12 @@ async fn main() -> Result<()> {
         Commands::Play => {
             music::tell("play").await?;
             println!("{} playing music", "Started".green());
+            concise_now_playing().await?;
         }
         Commands::Pause => {
             music::tell("pause").await?;
             println!("{} playing music", "Stopped".red());
+            concise_now_playing().await?;
         }
         Commands::Toggle => {
             let player_state = music::tell("player state").await?;
@@ -98,29 +120,36 @@ async fn main() -> Result<()> {
                 music::tell("pause").await?;
                 println!("{} playing music", "Stopped".red());
             }
+
+            concise_now_playing().await?;
         }
 
         Commands::Back => {
             music::tell("back track").await?;
             println!("{} to current or previous track", "Back tracked".cyan());
+            concise_now_playing().await?;
         }
-
         Commands::Forward => {
             music::tell("fast forward").await?;
             println!("{} in current track", "Fast forwarded".cyan());
+            concise_now_playing().await?;
         }
+
         Commands::Next => {
             music::tell("next track").await?;
             println!("{} to next track", "Advanced".magenta());
+            concise_now_playing().await?;
         }
-
         Commands::Previous => {
             music::tell("previous track").await?;
             println!("{} to previous track", "Returned".magenta());
+            concise_now_playing().await?;
         }
+
         Commands::Resume => {
             music::tell("resume").await?;
             println!("{} normal playback", "Resumed".magenta());
+            concise_now_playing().await?;
         }
 
         Commands::Now {
