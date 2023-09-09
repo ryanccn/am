@@ -37,6 +37,29 @@ Dequarantine them with `xattr -d com.apple.quarantine <path>` and make them exec
 - Discord rich presence
 - Shell completions
 
+## Screenshots
+
+<details>
+  <summary><code>am now</code></summary>
+
+![am now](/.github/images/now.png)
+
+</details>
+
+<details>
+  <summary><code>am next</code></summary>
+
+![am next](/.github/images/next.png)
+
+</details>
+
+<details>
+  <summary><code>am discord</code></summary>
+
+![am discord](/.github/images/discord.png)
+
+</details>
+
 ## Home Manager module
 
 This repository's flake also provides a Home Manager module at `homeManagerModules.default`. This module provides a service `am-discord-rich-presence` that you can enable so that `am`'s Discord rich presence runs in the background as long as you are logged in.
@@ -51,3 +74,13 @@ This repository's flake also provides a Home Manager module at `homeManagerModul
   }
 }
 ```
+
+## Thanks to...
+
+- [Raycast's Apple Music extension](https://github.com/raycast/extensions/tree/main/extensions/music) for a helpful reference of Apple Music's AppleScript interface usage
+- [sardonicism-04/discord-rich-presence](https://github.com/sardonicism-04/discord-rich-presence) for the original Rust crate for connecting to Discord
+- [caarlos0/discord-applemusic-rich-presence](https://github.com/caarlos0/discord-applemusic-rich-presence) for inspiring the Discord presence part of this CLI
+
+## License
+
+GPLv3
