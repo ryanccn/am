@@ -76,13 +76,26 @@ pub fn format_playlist_duration(duration_secs: &i32) -> String {
     str
 }
 
-pub fn format_player_state(raw: &str) -> Result<String> {
-    match raw {
-        "stopped" => Ok("Stopped".into()),
-        "playing" => Ok("Playing".into()),
-        "paused" => Ok("Paused".into()),
-        "fast forwarding" => Ok("Fast forwarding".into()),
-        "rewinding" => Ok("Rewinding".into()),
-        &_ => Err(anyhow!("Unexpected player state {}", raw)),
+pub fn format_player_state(raw: &str, nerd_fonts: bool) -> Result<String> {
+    if nerd_fonts {
+        return match raw {
+            "stopped" => Ok("".into()),
+            "playing" => Ok("".into()),
+            "paused" => Ok("".into()),
+            "fast forwarding" => Ok("".into()),
+            "rewinding" => Ok("".into()),
+            &_ => Err(anyhow!("Unexpected player state {}", raw)),
+        };
+    } else {
+        let mut ret = "".to_owned();
+        for (idx, char) in raw.char_indices() {
+            if idx == 0 {
+                ret += &char.to_uppercase().to_string();
+            } else {
+                ret += &char.to_string();
+            }
+        }
+
+        Ok(ret)
     }
 }

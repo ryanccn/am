@@ -24,8 +24,16 @@ enum Commands {
     /// Show now playing
     Now {
         /// Switch to an alternate screen and update now playing until interrupted
-        #[arg(short, long, default_value_t = false)]
+        #[arg(short, long)]
         watch: bool,
+
+        /// Disable Nerd Font symbols
+        #[arg(long)]
+        no_nerd_fonts: bool,
+
+        /// Playback progress bar width
+        #[arg(long)]
+        bar_width: Option<i32>,
     },
 
     /// Play the current track
@@ -115,8 +123,17 @@ async fn main() -> Result<()> {
             println!("{} normal playback", "Resumed".magenta());
         }
 
-        Commands::Now { watch } => {
-            cmd::now(watch).await?;
+        Commands::Now {
+            watch,
+            no_nerd_fonts,
+            bar_width,
+        } => {
+            cmd::now(cmd::NowOptions {
+                watch,
+                no_nerd_fonts,
+                bar_width,
+            })
+            .await?;
         }
 
         Commands::Discord => {

@@ -8,6 +8,13 @@ use std::{io::stdout, sync::Arc, time::Duration};
 use tokio::{signal::ctrl_c, sync::Mutex};
 
 #[derive(Debug, Clone)]
+pub struct NowOptions {
+    pub watch: bool,
+    pub no_nerd_fonts: bool,
+    pub bar_width: Option<i32>,
+}
+
+#[derive(Debug, Clone)]
 struct PlaybackState {
     state: String,
     position: Option<f32>,
@@ -115,7 +122,24 @@ async fn playback_tick(data: &Arc<Mutex<PlaybackState>>, period_ms: f32) -> Resu
     Ok(())
 }
 
-async fn update_display(data: &Arc<Mutex<PlaybackState>>, watch: bool) -> Result<()> {
+const BAR_CHAR: &str = "━";
+fn make_bar(n: f32, width: Option<i32>) -> Result<String> {
+    let width = match width {
+        Some(width) => width,
+        None => 20,
+    };
+
+    let part_one = (n * (width as f32)).floor() as i32;
+    let part_two = width - part_one;
+
+    let mut ret = "".to_owned();
+    ret += &BAR_CHAR.repeat(part_one.try_into()?);
+    ret += &BAR_CHAR.dimmed().to_string().repeat(part_two.try_into()?);
+
+    Ok(ret)
+}
+
+async fn update_display(data: &Arc<Mutex<PlaybackState>>, options: &NowOptions) -> Result<()> {
     let data = data.lock().await;
 
     let position = data
@@ -127,7 +151,7 @@ async fn update_display(data: &Arc<Mutex<PlaybackState>>, watch: bool) -> Result
         .clone()
         .ok_or_else(|| anyhow!("Could not obtain track data from shared playback state"))?;
 
-    if watch {
+    if options.watch {
         execute!(
             stdout(),
             cursor::MoveTo(0, 0),
@@ -137,9 +161,10 @@ async fn update_display(data: &Arc<Mutex<PlaybackState>>, watch: bool) -> Result
 
     println!("{}", track.name.bold());
     println!(
-        "{} {}/{}",
-        format::format_player_state(&data.state)?,
+        "{} {} {} {}",
+        format::format_player_state(&data.state, !options.no_nerd_fonts)?,
         format::format_duration(&position, false),
+        make_bar(position / track.duration, options.bar_width)?,
         format::format_duration(&track.duration, true),
     );
     println!("{} · {}", track.artist.blue(), track.album.magenta());
@@ -161,8 +186,8 @@ async fn update_display(data: &Arc<Mutex<PlaybackState>>, watch: bool) -> Result
     Ok(())
 }
 
-pub async fn now(watch: bool) -> Result<()> {
-    if watch {
+pub async fn now(options: NowOptions) -> Result<()> {
+    if options.watch {
         execute!(stdout(), terminal::EnterAlternateScreen, cursor::Hide)?;
     }
 
@@ -173,7 +198,7 @@ pub async fn now(watch: bool) -> Result<()> {
         track: None,
     }));
 
-    if watch {
+    if options.watch {
         let shared_data_state_update = shared_data.clone();
         let shared_data_playback_tick = shared_data.clone();
 
@@ -198,13 +223,14 @@ pub async fn now(watch: bool) -> Result<()> {
 
         let display_task = tokio::spawn({
             let mut shutdown_rx = shutdown_rx.clone();
+            let options = options.clone();
 
             async move {
                 let mut intvl = tokio::time::interval(Duration::from_millis(250));
 
                 loop {
                     tokio::select! {
-                        _ = intvl.tick() => { let _ = update_display(&shared_data, watch).await; }
+                        _ = intvl.tick() => { let _ = update_display(&shared_data, &options).await; }
                         _ = shutdown_rx.changed() => break,
                     }
                 }
@@ -240,10 +266,10 @@ pub async fn now(watch: bool) -> Result<()> {
         tokio::try_join!(state_task, playback_tick_task, display_task, ctrlc_task)?;
     } else {
         update_state(&shared_data).await?;
-        update_display(&shared_data, watch).await?;
+        update_display(&shared_data, &options).await?;
     }
 
-    if watch {
+    if options.watch {
         execute!(stdout(), terminal::LeaveAlternateScreen, cursor::Show)?;
     }
 
