@@ -6,6 +6,10 @@ mod metadata;
 
 pub use metadata::*;
 
+pub async fn is_running() -> Result<bool> {
+    Ok(Command::new("pgrep").arg("Music").status().await?.success())
+}
+
 pub async fn tell(applescript: &str) -> Result<String> {
     let mut osascript_cmd = Command::new("osascript");
     osascript_cmd.arg("-e").arg("tell application \"Music\"");

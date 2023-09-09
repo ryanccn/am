@@ -40,6 +40,13 @@ struct ActivityConnection {
 }
 
 async fn get_now_playing() -> Result<SongWithProgress> {
+    if music::is_running().await? {
+        return Ok(SongWithProgress {
+            song: None,
+            position: None,
+        });
+    };
+
     let initial_state =
         music::tell("get {database id} of current track & {player position, player state}").await?;
 
