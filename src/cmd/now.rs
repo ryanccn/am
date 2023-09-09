@@ -30,6 +30,7 @@ enum PlaybackStateDelta {
     TrackIDRequestMoreInfo(String),
     Track(Option<Track>),
     Playlist(Option<Playlist>),
+    Render,
 }
 
 #[derive(Debug, Clone)]
@@ -105,6 +106,8 @@ async fn update_state(
             tx.send(PlaybackStateDelta::Playlist(None)).await?;
         };
     }
+
+    tx.send(PlaybackStateDelta::Render).await?;
 
     Ok(())
 }
@@ -266,11 +269,13 @@ pub async fn now(options: NowOptions) -> Result<()> {
                                             tx_request_track.send(true).await.unwrap();
                                         };
                                     }
-                                };
-                            };
 
-                            if let Err(err) = update_display(&local_state, &options).await {
-                                eprintln!("{}", err);
+                                    PlaybackStateDelta::Render => {
+                                        if let Err(err) = update_display(&local_state, &options).await {
+                                            eprintln!("{}", err);
+                                        };
+                                    }
+                                };
                             };
                         }
 
