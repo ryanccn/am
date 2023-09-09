@@ -157,9 +157,9 @@ async fn update_display(data: &Arc<Mutex<PlaybackState>>, options: &NowOptions) 
         println!(
             "{} {} {} {}",
             format::format_player_state(&data.state, !options.no_nerd_fonts)?,
-            format::format_duration(&position, false),
+            format::format_duration(&(position as i32), false),
             make_bar(position / track.duration, options.bar_width)?,
-            format::format_duration(&track.duration, true),
+            format::format_duration(&(track.duration as i32), true),
         );
         println!("{} · {}", track.artist.blue(), track.album.magenta());
 
