@@ -17,6 +17,7 @@ struct PlaybackState {
 
 #[derive(Debug, Clone)]
 struct Track {
+    id: String,
     name: String,
     album: String,
     artist: String,
@@ -38,33 +39,41 @@ async fn update_state(data: &Arc<Mutex<PlaybackState>>) -> Result<()> {
     if player_state == "stopped" {
         println!("Playback is {}", "stopped".red());
     } else {
-        let (
-            track_name,
-            track_album,
-            track_artist,
-            track_duration_str,
-            player_position_str,
-            playlist_name,
-        ) = tokio::try_join!(
-            music::tell("get {name} of current track"),
-            music::tell("get {album} of current track"),
-            music::tell("get {artist} of current track"),
-            music::tell("get {duration} of current track"),
+        let (track_id, player_position, playlist_name) = tokio::try_join!(
+            music::tell("get {database id} of current track"),
             music::tell("player position"),
-            music::tell("get {name} of current playlist")
+            music::tell("get {name} of current playlist"),
         )?;
 
-        let track_duration = track_duration_str.parse::<f32>()?;
-        let player_position = player_position_str.parse::<f32>().ok();
-
-        data.track = Some(Track {
-            name: track_name,
-            album: track_album,
-            artist: track_artist,
-            duration: track_duration,
-        });
-
+        let player_position = player_position.parse::<f32>().ok();
         data.position = player_position;
+
+        let mut retrieve_track_data = true;
+
+        if let Some(track) = &data.track {
+            if track_id == track.id {
+                retrieve_track_data = false;
+            }
+        }
+
+        if retrieve_track_data {
+            let (track_name, track_album, track_artist, track_duration_str) = tokio::try_join!(
+                music::tell("get {name} of current track"),
+                music::tell("get {album} of current track"),
+                music::tell("get {artist} of current track"),
+                music::tell("get {duration} of current track")
+            )?;
+
+            let track_duration = track_duration_str.parse::<f32>()?;
+
+            data.track = Some(Track {
+                id: track_id,
+                name: track_name,
+                album: track_album,
+                artist: track_artist,
+                duration: track_duration,
+            });
+        }
 
         let mut playlist: Option<Playlist> = None;
 
