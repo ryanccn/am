@@ -70,7 +70,7 @@ async fn update_state(
 
         tx.send(PlaybackStateDelta::TrackIDRequestMoreInfo(track_id.clone()))
             .await?;
-        let retrieve_track_data = rx_request_track.try_recv()?;
+        let retrieve_track_data = rx_request_track.recv().await.unwrap();
 
         if retrieve_track_data {
             let (track_name, track_album, track_artist, track_duration_str) = tokio::try_join!(
@@ -175,128 +175,150 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
     Ok(())
 }
 
+async fn receive_delta(
+    data: &mut PlaybackState,
+    delta: &PlaybackStateDelta,
+    options: &NowOptions,
+    tx_request_track: &mpsc::Sender<bool>,
+) -> Result<()> {
+    match delta {
+        PlaybackStateDelta::State(state) => {
+            data.state = state.to_string();
+        }
+
+        PlaybackStateDelta::Track(track) => {
+            data.track = track.clone();
+        }
+        PlaybackStateDelta::Playlist(playlist) => {
+            data.playlist = playlist.clone();
+        }
+
+        PlaybackStateDelta::Position(position) => {
+            data.position = position.clone();
+        }
+
+        PlaybackStateDelta::PositionTick => {
+            if data.state == "playing" {
+                if let Some(position) = data.position {
+                    data.position = Some(position + 0.25);
+                }
+            }
+        }
+
+        PlaybackStateDelta::TrackIDRequestMoreInfo(id) => {
+            if let Some(track) = &data.track {
+                tx_request_track
+                    .send(track.id != id.to_string())
+                    .await
+                    .unwrap();
+            } else {
+                tx_request_track.send(true).await.unwrap();
+            };
+        }
+
+        PlaybackStateDelta::Render => {
+            if let Err(err) = update_display(&data, &options).await {
+                eprintln!("{}", err);
+            };
+        }
+    };
+
+    Ok(())
+}
+
 pub async fn now(options: NowOptions) -> Result<()> {
     if options.watch {
         execute!(stdout(), terminal::EnterAlternateScreen, cursor::Hide)?;
     };
 
-    let (tx, mut rx) = mpsc::channel::<PlaybackStateDelta>(5);
-    let (tx_request_track, mut rx_request_track) = mpsc::channel::<bool>(1);
+    let (tx, mut rx) = mpsc::channel::<PlaybackStateDelta>(20);
+    let (tx_request_track, mut rx_request_track) = mpsc::channel::<bool>(20);
 
-    if options.watch {
-        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
 
-        let state_task = tokio::spawn({
-            let tx = tx.clone();
-            let mut shutdown_rx = shutdown_rx.clone();
+    let state_task = tokio::spawn({
+        let tx = tx.clone();
+        let mut shutdown_rx = shutdown_rx.clone();
 
-            async move {
-                let mut intvl = tokio::time::interval(Duration::from_secs(1));
+        async move {
+            let mut intvl = tokio::time::interval(Duration::from_secs(1));
 
-                loop {
-                    tokio::select! {
-                        _ = intvl.tick() => if let Err(err) = update_state(&tx, &mut rx_request_track).await {
-                            eprintln!("{err}");
-                        },
-                        _ = shutdown_rx.changed() => break,
-                    }
+            loop {
+                tokio::select! {
+                    _ = intvl.tick() => if let Err(err) = update_state(&tx, &mut rx_request_track).await {
+                        eprintln!("{err}");
+                    },
+                    _ = shutdown_rx.changed() => break,
                 }
             }
-        });
+        }
+    });
 
-        let playback_tick_period_ms = 250.0;
+    let playback_tick_period_ms = 250.0;
 
-        let playback_tick_task = tokio::spawn({
-            let mut shutdown_rx = shutdown_rx.clone();
-            let tx = tx.clone();
+    let playback_tick_task = tokio::spawn({
+        let mut shutdown_rx = shutdown_rx.clone();
+        let tx = tx.clone();
 
-            async move {
-                let mut intvl =
-                    tokio::time::interval(Duration::from_millis(playback_tick_period_ms as u64));
+        async move {
+            let mut intvl =
+                tokio::time::interval(Duration::from_millis(playback_tick_period_ms as u64));
 
-                loop {
-                    tokio::select! {
-                        _ = intvl.tick() => {
-                            tx.send(PlaybackStateDelta::PositionTick).await.unwrap();
-                            tx.send(PlaybackStateDelta::Render).await.unwrap();
-                        }
-                        _ = shutdown_rx.changed() => break,
+            loop {
+                tokio::select! {
+                    _ = intvl.tick() => {
+                        tx.send(PlaybackStateDelta::PositionTick).await.unwrap();
                     }
+                    _ = shutdown_rx.changed() => break,
                 }
             }
-        });
+        }
+    });
 
-        let display_task = tokio::spawn({
-            let mut shutdown_rx = shutdown_rx.clone();
-            let options = options.clone();
+    let display_task = tokio::spawn({
+        let mut shutdown_rx = shutdown_rx.clone();
+        let options = options.clone();
 
-            async move {
-                let mut local_state = PlaybackState {
-                    state: "stopped".into(),
-                    playlist: None,
-                    position: None,
-                    track: None,
+        async move {
+            let mut local_state = PlaybackState {
+                state: "stopped".into(),
+                playlist: None,
+                position: None,
+                track: None,
+            };
+
+            loop {
+                tokio::select! {
+                    delta = rx.recv() => {
+                        if let Some(delta) = delta {
+                            receive_delta(&mut local_state, &delta, &options, &tx_request_track).await.unwrap();
+
+                            if let PlaybackStateDelta::Render = delta  {
+                                if !options.watch {
+                                    break;
+                                }
+                            }
+                        };
+                    }
+
+                    _ = shutdown_rx.changed() => break,
                 };
-
-                loop {
-                    tokio::select! {
-                        data = rx.recv() => {
-                            if let Some(data) = data {
-                                match data {
-                                    PlaybackStateDelta::State(state) => {
-                                        local_state.state = state;
-                                    }
-
-                                    PlaybackStateDelta::Track(track) => {
-                                        local_state.track = track;
-                                    }
-                                    PlaybackStateDelta::Playlist(playlist) => {
-                                        local_state.playlist = playlist;
-                                    }
-
-                                    PlaybackStateDelta::Position(position) => {
-                                        local_state.position = position;
-                                    }
-
-                                    PlaybackStateDelta::PositionTick => {
-                                        if local_state.state == "playing" {
-                                            if let Some(position) = local_state.position {
-                                                local_state.position = Some(position + 0.25);
-                                            }
-                                        }
-                                    }
-
-                                    PlaybackStateDelta::TrackIDRequestMoreInfo(id) => {
-                                        if let Some(track) = &local_state.track {
-                                            tx_request_track.send(track.id != id).await.unwrap();
-                                        } else {
-                                            tx_request_track.send(true).await.unwrap();
-                                        };
-                                    }
-
-                                    PlaybackStateDelta::Render => {
-                                        if let Err(err) = update_display(&local_state, &options).await {
-                                            eprintln!("{}", err);
-                                        };
-                                    }
-                                };
-                            };
-                        }
-
-                        _ = shutdown_rx.changed() => break,
-                    };
-                }
             }
-        });
+        }
+    });
 
-        let ctrlc_task = tokio::spawn(async move {
-            if ctrl_c().await.is_ok() {
-                let _ = shutdown_tx.send(());
-            }
-        });
+    let ctrlc_task = tokio::spawn(async move {
+        if ctrl_c().await.is_ok() {
+            let _ = shutdown_tx.send(());
+        }
+    });
 
-        tokio::try_join!(state_task, playback_tick_task, display_task, ctrlc_task)?;
-    };
+    tokio::select!(
+        _ = state_task => {},
+        _ = playback_tick_task => {},
+        _ = display_task => {},
+        _ = ctrlc_task => {},
+    );
 
     if options.watch {
         execute!(stdout(), terminal::LeaveAlternateScreen, cursor::Show)?;
