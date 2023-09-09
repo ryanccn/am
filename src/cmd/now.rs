@@ -155,23 +155,20 @@ pub async fn now(watch: bool) -> Result<()> {
     if watch {
         let shared_data_state_update = shared_data.clone();
 
-        let shared_stop = Arc::new(Mutex::new(false));
-        let shared_stop_state_update = shared_stop.clone();
-        let shared_stop_ctrlc = shared_stop.clone();
+        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
+        let mut shutdown_rx_1 = shutdown_rx.clone();
+        let mut shutdown_rx_2 = shutdown_rx.clone();
 
         let state_task = tokio::spawn(async move {
             let mut intvl = tokio::time::interval(Duration::from_millis(250));
 
             loop {
-                if let Err(err) = update_state(&shared_data_state_update).await {
-                    eprintln!("{}", err);
-                };
-
-                if shared_stop_state_update.lock().await.to_owned() {
-                    break;
-                };
-
-                intvl.tick().await;
+                tokio::select! {
+                    _ = intvl.tick() => if let Err(err) = update_state(&shared_data_state_update).await {
+                        eprintln!("{err}");
+                    },
+                    _ = shutdown_rx_1.changed() => break,
+                }
             }
         });
 
@@ -179,22 +176,16 @@ pub async fn now(watch: bool) -> Result<()> {
             let mut intvl = tokio::time::interval(Duration::from_millis(250));
 
             loop {
-                if let Err(err) = update_display(&shared_data, watch).await {
-                    eprintln!("{}", err);
-                };
-
-                if shared_stop.lock().await.to_owned() {
-                    break;
-                };
-
-                intvl.tick().await;
+                tokio::select! {
+                    _ = intvl.tick() => { let _ = update_display(&shared_data, watch).await; }
+                    _ = shutdown_rx_2.changed() => break,
+                }
             }
         });
 
         let ctrlc_task = tokio::spawn(async move {
             if ctrl_c().await.is_ok() {
-                let mut stop = shared_stop_ctrlc.lock().await;
-                *stop = true;
+                let _ = shutdown_tx.send(());
             }
         });
 
