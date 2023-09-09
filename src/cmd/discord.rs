@@ -147,20 +147,18 @@ async fn update_presence(
 
             let activity_state = format!("{} · {}", &song.artist, &song.album);
 
-            let mut activity = Activity::new()
-                .details(song.name.clone())
-                .state(activity_state.clone());
+            let mut activity = Activity::new().details(&song.name).state(&activity_state);
 
             let mut activity_assets = Assets::new();
 
             activity_assets = activity_assets
-                .large_image(song.album_artwork.clone())
-                .large_text(song.name.clone());
+                .large_image(&song.album_artwork)
+                .large_text(&song.name);
 
             if let Some(artist_artwork) = song.artist_artwork {
                 activity_assets = activity_assets
-                    .small_image(artist_artwork)
-                    .small_text(song.artist.clone());
+                    .small_image(&artist_artwork)
+                    .small_text(&song.artist);
             }
 
             activity = activity.assets(activity_assets);
@@ -171,10 +169,10 @@ async fn update_presence(
             );
 
             activity = activity.buttons(vec![
-                Button::new("Listen on Apple Music".to_owned(), song.share_url.clone()),
+                Button::new("Listen on Apple Music", &song.share_url),
                 Button::new(
-                    "View on SongLink".to_owned(),
-                    format!("https://song.link/i/{}", song.share_id),
+                    "View on SongLink",
+                    &format!("https://song.link/i/{}", song.share_id),
                 ),
             ]);
 
