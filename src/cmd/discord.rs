@@ -215,6 +215,7 @@ pub async fn discord() -> Result<()> {
         }
     }
 
+    client.clear_activity().await?;
     client.close().await?;
     println!("{} Discord presence", "Shutting down".yellow());
 
