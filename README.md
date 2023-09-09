@@ -24,6 +24,14 @@ This GitHub repository contains a flake. Add `github:ryanccn/am` to your flake i
 
 Then, use the overlay from `overlays.default` and add `am` to your packages. Alternatively, you can use `packages.default` directly.
 
+### Cargo
+
+You can install (the cutting-edge version of) `am` through `cargo`.
+
+```console
+$ cargo install --git https://github.com/ryanccn/am.git
+```
+
 ### Manual download
 
 Download the [`aarch64`](https://github.com/ryanccn/am/releases/latest/download/am-aarch64-apple-darwin) (Apple Silicon) or the [`x86_64`](https://github.com/ryanccn/am/releases/latest/download/am-x86_64-apple-darwin) (Intel) version of the binary.
