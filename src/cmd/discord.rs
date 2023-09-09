@@ -54,14 +54,14 @@ async fn get_now_playing() -> Result<SongWithProgress> {
 
     let song_id = initial_state
         .next()
-        .ok_or(anyhow!("Could not obtain song ID"))?;
+        .ok_or_else(|| anyhow!("Could not obtain song ID"))?;
     let position = initial_state
         .next()
-        .ok_or(anyhow!("Could not obtain player position"))?;
+        .ok_or_else(|| anyhow!("Could not obtain player position"))?;
 
     let state = initial_state
         .next()
-        .ok_or(anyhow!("Could not obtain player state"))?;
+        .ok_or_else(|| anyhow!("Could not obtain player state"))?;
 
     if state != "playing" {
         return Ok(SongWithProgress {
@@ -128,7 +128,7 @@ async fn update_presence(
         if !ongoing {
             let position = now
                 .position
-                .ok_or(anyhow!("Could not obtain position data from result"))?;
+                .ok_or_else(|| anyhow!("Could not obtain position data from result"))?;
 
             activity.last_position = Some(position);
             activity.last_song_id = Some(song.id);

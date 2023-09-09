@@ -75,7 +75,7 @@ pub async fn get_metadata(
     let artist_key_danger = artist
         .split(&[',', '&'][..])
         .next()
-        .ok_or(anyhow!("Could not obtain artist to query with"))?;
+        .ok_or_else(|| anyhow!("Could not obtain artist to query with"))?;
     let artist_key = encode_component(&artist_key_danger);
 
     let mut artist_artwork: Option<String> = None;
@@ -92,7 +92,7 @@ pub async fn get_metadata(
         .songs
         .data
         .first()
-        .ok_or(anyhow!("Could not obtain song metadata"))?;
+        .ok_or_else(|| anyhow!("Could not obtain song metadata"))?;
 
     let id: String = song_data.id.clone();
     let album_artwork: String = song_data
