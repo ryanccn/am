@@ -218,6 +218,7 @@ pub async fn now(options: NowOptions) -> Result<()> {
                     tokio::select! {
                         _ = intvl.tick() => {
                             tx.send(PlaybackStateDelta::PositionTick).await.unwrap();
+                            tx.send(PlaybackStateDelta::Render).await.unwrap();
                         }
                         _ = shutdown_rx.changed() => break,
                     }
@@ -256,9 +257,12 @@ pub async fn now(options: NowOptions) -> Result<()> {
                                     PlaybackStateDelta::Position(position) => {
                                         local_state.position = position;
                                     }
+
                                     PlaybackStateDelta::PositionTick => {
-                                        if let Some(position) = local_state.position {
-                                            local_state.position = Some(position + 0.25);
+                                        if local_state.state == "playing" {
+                                            if let Some(position) = local_state.position {
+                                                local_state.position = Some(position + 0.25);
+                                            }
                                         }
                                     }
 
