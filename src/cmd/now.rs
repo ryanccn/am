@@ -89,20 +89,16 @@ async fn update_state(data: &Arc<Mutex<PlaybackState>>) -> Result<()> {
             });
         }
 
-        let mut playlist: Option<Playlist> = None;
-
         if !playlist_name.is_empty() {
             let playlist_duration = music::tell("get {duration} of current playlist")
                 .await?
                 .parse::<i32>()?;
 
-            playlist = Some(Playlist {
+            data.playlist = Some(Playlist {
                 name: playlist_name.to_string(),
                 duration: playlist_duration,
             });
         }
-
-        data.playlist = playlist;
     }
 
     Ok(())
