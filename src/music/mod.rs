@@ -1,3 +1,5 @@
+use std::process::Stdio;
+
 use tokio::process::Command;
 
 use anyhow::Result;
@@ -7,7 +9,13 @@ mod metadata;
 pub use metadata::*;
 
 pub async fn is_running() -> Result<bool> {
-    Ok(Command::new("pgrep").arg("Music").status().await?.success())
+    Ok(Command::new("pgrep")
+        .arg("Music")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await?
+        .success())
 }
 
 pub async fn tell(applescript: &str) -> Result<String> {
