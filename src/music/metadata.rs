@@ -4,6 +4,8 @@ use url_escape::encode_component;
 
 use anyhow::{anyhow, Result};
 
+use super::Track;
+
 pub struct Metadata {
     pub id: String,
     pub album_artwork: String,
@@ -64,15 +66,11 @@ struct ArtistMetadataResult {
     artists: ArtistDataResult,
 }
 
-pub async fn get_metadata(
-    client: &Client,
-    artist: String,
-    album: String,
-    song: String,
-) -> Result<Metadata> {
-    let song_key_danger = artist.clone() + " " + &album + " " + &song;
+pub async fn get_metadata(client: &Client, track: &Track) -> Result<Metadata> {
+    let song_key_danger = track.artist.clone() + " " + &track.album + " " + &track.name;
     let song_key = encode_component(&song_key_danger);
-    let artist_key_danger = artist
+    let artist_key_danger = track
+        .artist
         .split(&[',', '&'][..])
         .next()
         .ok_or_else(|| anyhow!("Could not obtain artist to query with"))?;

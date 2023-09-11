@@ -52,7 +52,7 @@ in
     ];
 
     postInstall = ''
-      installShellCompletion --cmd am \
+      installShellCompletion --cmd ${pname} \
         --bash <("$out/bin/${pname}" completions bash) \
         --zsh <("$out/bin/${pname}" completions zsh) \
         --fish <("$out/bin/${pname}" completions fish)

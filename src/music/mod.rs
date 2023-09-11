@@ -2,7 +2,7 @@ use std::process::Stdio;
 
 use tokio::process::Command;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 mod metadata;
 
@@ -18,12 +18,86 @@ pub async fn is_running() -> Result<bool> {
         .success())
 }
 
-pub async fn tell(applescript: &str) -> Result<String> {
+#[derive(Debug, Clone)]
+pub struct Track {
+    pub id: String,
+    pub name: String,
+    pub album: String,
+    pub artist: String,
+    pub duration: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct Playlist {
+    pub name: String,
+    pub duration: i32,
+}
+
+pub async fn tell_raw(applescript: &[&str]) -> Result<String> {
     let mut osascript_cmd = Command::new("osascript");
-    osascript_cmd.arg("-e").arg("tell application \"Music\"");
-    osascript_cmd.arg("-e").arg(applescript);
-    osascript_cmd.arg("-e").arg("end tell");
+
+    for a in applescript {
+        osascript_cmd.arg("-e").arg(a);
+    }
 
     let output = osascript_cmd.output().await?;
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+pub async fn tell(applescript: &str) -> Result<String> {
+    tell_raw(&["tell application \"Music\"", applescript, "end tell"]).await
+}
+
+pub async fn get_current_track() -> Result<Option<Track>> {
+    let player_state = tell("get player state").await?;
+
+    if player_state == "stopped" {
+        Ok(None)
+    } else {
+        let track_data = tell_raw(&[
+            "set output to \"\"",
+            "tell application \"Music\"",
+            "set t_id to database id of current track",
+            "set t_name to name of current track",
+            "set t_album to album of current track",
+            "set t_artist to artist of current track",
+            "set t_duration to duration of current track",
+            "set output to \"\" & t_id & \"\\n\" & t_name & \"\\n\" & t_album & \"\\n\" & t_artist & \"\\n\" & t_duration",
+            "end tell",
+            "return output"
+        ])
+        .await?;
+
+        let mut track_data = track_data.split('\n');
+
+        let id = track_data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain track ID"))?
+            .to_owned();
+        let name = track_data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain track name"))?
+            .to_owned();
+        let album = track_data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain track album"))?
+            .to_owned();
+        let artist = track_data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain track artist"))?
+            .to_owned();
+        let duration = track_data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain track duration"))?
+            .to_owned()
+            .parse::<f64>()?;
+
+        Ok(Some(Track {
+            id,
+            name,
+            album,
+            artist,
+            duration,
+        }))
+    }
 }

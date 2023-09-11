@@ -17,35 +17,20 @@ pub struct NowOptions {
 #[derive(Debug, Clone)]
 struct PlaybackState {
     state: String,
-    position: Option<f32>,
-    track: Option<Track>,
-    playlist: Option<Playlist>,
+    position: Option<f64>,
+    track: Option<music::Track>,
+    playlist: Option<music::Playlist>,
 }
 
 #[derive(Debug)]
 enum PlaybackStateDelta {
     State(String),
-    Position(Option<f32>),
+    Position(Option<f64>),
     PositionTick,
     TrackIDRequestMoreInfo(String),
-    Track(Option<Track>),
-    Playlist(Option<Playlist>),
+    Track(Option<music::Track>),
+    Playlist(Option<music::Playlist>),
     Render,
-}
-
-#[derive(Debug, Clone)]
-struct Track {
-    id: String,
-    name: String,
-    album: String,
-    artist: String,
-    duration: f32,
-}
-
-#[derive(Debug, Clone)]
-struct Playlist {
-    name: String,
-    duration: i32,
 }
 
 async fn update_state(
@@ -57,13 +42,34 @@ async fn update_state(
         .await?;
 
     if player_state != "stopped" {
-        let (track_id, player_position, playlist_name) = tokio::try_join!(
-            music::tell("get {database id} of current track"),
-            music::tell("player position"),
-            music::tell("get {name} of current playlist"),
-        )?;
+        let data = music::tell_raw(&[
+            "set output to \"\"",
+            "tell application \"Music\"",
+            "set track_id to database id of current track",
+            "set player_position to player position",
+            "set playlist_name to name of current playlist",
+            "set output to \"\" & track_id & \"\\n\" & player_position & \"\\n\" & playlist_name",
+            "end tell",
+            "return output",
+        ])
+        .await?;
 
-        let player_position = player_position.parse::<f32>().ok();
+        let mut data = data.split('\n');
+
+        let track_id = data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain track ID"))?
+            .to_owned();
+        let player_position = data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain player position"))?
+            .to_owned();
+        let playlist_name = data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain playlist name"))?
+            .to_owned();
+
+        let player_position = player_position.parse::<f64>().ok();
 
         tx.send(PlaybackStateDelta::Position(player_position))
             .await?;
@@ -73,23 +79,8 @@ async fn update_state(
         let retrieve_track_data = rx_request_track.recv().await.unwrap();
 
         if retrieve_track_data {
-            let (track_name, track_album, track_artist, track_duration_str) = tokio::try_join!(
-                music::tell("get {name} of current track"),
-                music::tell("get {album} of current track"),
-                music::tell("get {artist} of current track"),
-                music::tell("get {duration} of current track")
-            )?;
-
-            let track_duration = track_duration_str.parse::<f32>()?;
-
-            tx.send(PlaybackStateDelta::Track(Some(Track {
-                id: track_id,
-                name: track_name,
-                album: track_album,
-                artist: track_artist,
-                duration: track_duration,
-            })))
-            .await?;
+            let track = music::get_current_track().await?;
+            tx.send(PlaybackStateDelta::Track(track)).await?;
         }
 
         if !playlist_name.is_empty() {
@@ -97,7 +88,7 @@ async fn update_state(
                 .await?
                 .parse::<i32>()?;
 
-            tx.send(PlaybackStateDelta::Playlist(Some(Playlist {
+            tx.send(PlaybackStateDelta::Playlist(Some(music::Playlist {
                 name: playlist_name.to_string(),
                 duration: playlist_duration,
             })))
@@ -113,10 +104,10 @@ async fn update_state(
 }
 
 const BAR_CHAR: &str = "━";
-fn make_bar(n: f32, width: Option<i32>) -> Result<String> {
+fn make_bar(n: f64, width: Option<i32>) -> Result<String> {
     let width = width.unwrap_or(20);
 
-    let part_one = (n * (width as f32)).floor() as i32;
+    let part_one = (n * (width as f64)).floor() as i32;
     let part_two = width - part_one;
 
     let mut ret = "".to_owned();

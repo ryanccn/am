@@ -82,7 +82,7 @@ async fn concise_now_playing() -> Result<()> {
         music::tell("get {artist} of current track"),
         music::tell("get {duration} of current track")
     )?;
-    let duration = duration.parse::<f32>()?;
+    let duration = duration.parse::<f64>()?;
 
     println!(
         "{} {}\n{} · {}",

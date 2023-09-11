@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 struct Song {
-    id: i64,
+    id: String,
     name: String,
     artist: String,
     album: String,
@@ -34,7 +34,7 @@ struct SongWithProgress {
 
 #[derive(Debug, Clone)]
 struct ActivityConnection {
-    last_song_id: Option<i64>,
+    last_song_id: Option<String>,
     last_position: Option<f64>,
     is_idle: bool,
 }
@@ -47,25 +47,13 @@ async fn get_now_playing() -> Result<SongWithProgress> {
         });
     };
 
-    let initial_state =
-        music::tell("get {database id} of current track & {player position, player state}").await?;
-
-    if initial_state.is_empty() {
-        return Ok(SongWithProgress {
-            song: None,
-            position: None,
-        });
-    }
+    let initial_state = music::tell("get {player position, player state}").await?;
 
     let mut initial_state = initial_state.split(", ");
 
-    let song_id = initial_state
-        .next()
-        .ok_or_else(|| anyhow!("Could not obtain song ID"))?;
     let position = initial_state
         .next()
         .ok_or_else(|| anyhow!("Could not obtain player position"))?;
-
     let state = initial_state
         .next()
         .ok_or_else(|| anyhow!("Could not obtain player state"))?;
@@ -77,30 +65,24 @@ async fn get_now_playing() -> Result<SongWithProgress> {
         });
     }
 
-    let song_id = song_id.parse::<i64>()?;
     let position = position.parse::<f64>()?;
 
-    let (name, album, artist, duration_str) = tokio::try_join!(
-        music::tell("get {name} of current track"),
-        music::tell("get {album} of current track"),
-        music::tell("get {artist} of current track"),
-        music::tell("get {duration} of current track")
-    )?;
-    let duration = duration_str.parse::<f64>()?;
+    let track = music::get_current_track()
+        .await?
+        .ok_or_else(|| anyhow!("Could not obtain track information"))?;
 
     let client = reqwest::Client::new();
 
-    let metadata =
-        music::get_metadata(&client, artist.clone(), album.clone(), name.clone()).await?;
+    let metadata = music::get_metadata(&client, &track).await?;
 
     Ok(SongWithProgress {
         song: Some({
             Song {
-                id: song_id,
-                name,
-                artist,
-                album,
-                duration,
+                id: track.id,
+                name: track.name,
+                artist: track.artist,
+                album: track.album,
+                duration: track.duration,
                 album_artwork: metadata.album_artwork,
                 artist_artwork: metadata.artist_artwork,
                 share_url: metadata.share_url,
@@ -120,8 +102,8 @@ async fn update_presence(
     let mut ongoing = false;
 
     if let Some(song) = now.song {
-        if let Some(last_song_id) = activity.last_song_id {
-            if last_song_id == song.id {
+        if let Some(last_song_id) = &activity.last_song_id {
+            if *last_song_id == song.id {
                 if let Some(last_position) = activity.last_position {
                     if let Some(now_position) = now.position {
                         if last_position <= now_position {
