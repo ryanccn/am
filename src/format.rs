@@ -76,14 +76,14 @@ pub fn format_duration_plain(duration_secs: &i32) -> String {
 
 pub fn format_player_state(raw: &str, nerd_fonts: bool) -> Result<String> {
     if nerd_fonts {
-        return match raw {
+        match raw {
             "stopped" => Ok("".into()),
             "playing" => Ok("".into()),
             "paused" => Ok("".into()),
             "fast forwarding" => Ok("".into()),
             "rewinding" => Ok("".into()),
             &_ => Err(anyhow!("Unexpected player state {}", raw)),
-        };
+        }
     } else {
         let mut ret = "".to_owned();
         for (idx, char) in raw.char_indices() {

@@ -4,8 +4,8 @@ use anyhow::{anyhow, Result};
 use crossterm::{cursor, execute, terminal};
 use owo_colors::OwoColorize;
 
-use std::{io::stdout, sync::Arc, time::Duration};
-use tokio::{signal::ctrl_c, sync::Mutex};
+use std::{io::stdout, time::Duration};
+use tokio::{signal::ctrl_c, sync::mpsc};
 
 #[derive(Debug, Clone)]
 pub struct NowOptions {
@@ -17,76 +17,70 @@ pub struct NowOptions {
 #[derive(Debug, Clone)]
 struct PlaybackState {
     state: String,
-    position: Option<f32>,
-    track: Option<Track>,
-    playlist: Option<Playlist>,
+    position: Option<f64>,
+    track: Option<music::Track>,
+    playlist: Option<music::Playlist>,
 }
 
-#[derive(Debug, Clone)]
-struct Track {
-    id: String,
-    name: String,
-    album: String,
-    artist: String,
-    duration: f32,
+#[derive(Debug)]
+enum PlaybackStateDelta {
+    State(String),
+    Position(Option<f64>),
+    PositionTick,
+    TrackIDRequestMoreInfo(String),
+    Track(Option<music::Track>),
+    Playlist(Option<music::Playlist>),
+    Render,
 }
 
-#[derive(Debug, Clone)]
-struct Playlist {
-    name: String,
-    duration: i32,
-}
-
-async fn update_state(data: &Arc<Mutex<PlaybackState>>) -> Result<()> {
-    let mut data = data.lock().await;
-
+async fn update_state(
+    tx: &mpsc::Sender<PlaybackStateDelta>,
+    rx_request_track: &mut mpsc::Receiver<bool>,
+) -> Result<()> {
     let player_state = music::tell("player state").await?;
-    data.state = player_state.clone();
+    tx.send(PlaybackStateDelta::State(player_state.clone()))
+        .await?;
 
     if player_state != "stopped" {
-        let (track_id, player_position, playlist_name) = tokio::try_join!(
-            music::tell("get {database id} of current track"),
-            music::tell("player position"),
-            music::tell("get {name} of current playlist"),
-        )?;
+        let data = music::tell_raw(&[
+            "set output to \"\"",
+            "tell application \"Music\"",
+            "set track_id to database id of current track",
+            "set player_position to player position",
+            "set playlist_name to name of current playlist",
+            "set output to \"\" & track_id & \"\\n\" & player_position & \"\\n\" & playlist_name",
+            "end tell",
+            "return output",
+        ])
+        .await?;
 
-        let player_position = player_position.parse::<f32>().ok();
+        let mut data = data.split('\n');
 
-        if let Some(player_position) = player_position {
-            if let Some(data_position) = data.position {
-                if (player_position - data_position).abs() >= 2.0 {
-                    data.position = Some(player_position);
-                }
-            } else {
-                data.position = Some(player_position);
-            }
-        }
+        let track_id = data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain track ID"))?
+            .to_owned();
+        let player_position = data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain player position"))?
+            .to_owned();
+        let playlist_name = data
+            .next()
+            .ok_or_else(|| anyhow!("Could not obain playlist name"))?
+            .to_owned();
 
-        let mut retrieve_track_data = true;
+        let player_position = player_position.parse::<f64>().ok();
 
-        if let Some(track) = &data.track {
-            if track_id == track.id {
-                retrieve_track_data = false;
-            }
-        }
+        tx.send(PlaybackStateDelta::Position(player_position))
+            .await?;
+
+        tx.send(PlaybackStateDelta::TrackIDRequestMoreInfo(track_id.clone()))
+            .await?;
+        let retrieve_track_data = rx_request_track.recv().await.unwrap();
 
         if retrieve_track_data {
-            let (track_name, track_album, track_artist, track_duration_str) = tokio::try_join!(
-                music::tell("get {name} of current track"),
-                music::tell("get {album} of current track"),
-                music::tell("get {artist} of current track"),
-                music::tell("get {duration} of current track")
-            )?;
-
-            let track_duration = track_duration_str.parse::<f32>()?;
-
-            data.track = Some(Track {
-                id: track_id,
-                name: track_name,
-                album: track_album,
-                artist: track_artist,
-                duration: track_duration,
-            });
+            let track = music::get_current_track().await?;
+            tx.send(PlaybackStateDelta::Track(track)).await?;
         }
 
         if !playlist_name.is_empty() {
@@ -94,33 +88,26 @@ async fn update_state(data: &Arc<Mutex<PlaybackState>>) -> Result<()> {
                 .await?
                 .parse::<i32>()?;
 
-            data.playlist = Some(Playlist {
+            tx.send(PlaybackStateDelta::Playlist(Some(music::Playlist {
                 name: playlist_name.to_string(),
                 duration: playlist_duration,
-            });
-        }
+            })))
+            .await?;
+        } else {
+            tx.send(PlaybackStateDelta::Playlist(None)).await?;
+        };
     }
 
-    Ok(())
-}
-
-async fn playback_tick(data: &Arc<Mutex<PlaybackState>>, period_ms: f32) -> Result<()> {
-    let mut data = data.lock().await;
-
-    if data.state == "playing" {
-        if let Some(position) = data.position {
-            data.position = Some(position + period_ms / 1000.0);
-        }
-    }
+    tx.send(PlaybackStateDelta::Render).await?;
 
     Ok(())
 }
 
 const BAR_CHAR: &str = "━";
-fn make_bar(n: f32, width: Option<i32>) -> Result<String> {
+fn make_bar(n: f64, width: Option<i32>) -> Result<String> {
     let width = width.unwrap_or(20);
 
-    let part_one = (n * (width as f32)).floor() as i32;
+    let part_one = (n * (width as f64)).floor() as i32;
     let part_two = width - part_one;
 
     let mut ret = "".to_owned();
@@ -130,9 +117,7 @@ fn make_bar(n: f32, width: Option<i32>) -> Result<String> {
     Ok(ret)
 }
 
-async fn update_display(data: &Arc<Mutex<PlaybackState>>, options: &NowOptions) -> Result<()> {
-    let data = data.lock().await;
-
+async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()> {
     if options.watch {
         execute!(
             stdout(),
@@ -146,7 +131,6 @@ async fn update_display(data: &Arc<Mutex<PlaybackState>>, options: &NowOptions) 
     } else {
         let position = data
             .position
-            .clone()
             .ok_or_else(|| anyhow!("Could not obtain position from shared playback state"))?;
         let track = data
             .track
@@ -175,8 +159,56 @@ async fn update_display(data: &Arc<Mutex<PlaybackState>>, options: &NowOptions) 
             );
         } else {
             println!("{}", "No playlist".dimmed());
+        };
+    };
+
+    Ok(())
+}
+
+async fn receive_delta(
+    data: &mut PlaybackState,
+    delta: &PlaybackStateDelta,
+    options: &NowOptions,
+    tx_request_track: &mpsc::Sender<bool>,
+) -> Result<()> {
+    match delta {
+        PlaybackStateDelta::State(state) => {
+            data.state = state.to_string();
         }
-    }
+
+        PlaybackStateDelta::Track(track) => {
+            data.track = track.clone();
+        }
+        PlaybackStateDelta::Playlist(playlist) => {
+            data.playlist = playlist.clone();
+        }
+
+        PlaybackStateDelta::Position(position) => {
+            data.position = *position;
+        }
+
+        PlaybackStateDelta::PositionTick => {
+            if data.state == "playing" {
+                if let Some(position) = data.position {
+                    data.position = Some(position + 0.25);
+                }
+            }
+        }
+
+        PlaybackStateDelta::TrackIDRequestMoreInfo(id) => {
+            if let Some(track) = &data.track {
+                tx_request_track.send(track.id != *id).await.unwrap();
+            } else {
+                tx_request_track.send(true).await.unwrap();
+            };
+        }
+
+        PlaybackStateDelta::Render => {
+            if let Err(err) = update_display(data, options).await {
+                eprintln!("{}", err);
+            };
+        }
+    };
 
     Ok(())
 }
@@ -184,85 +216,96 @@ async fn update_display(data: &Arc<Mutex<PlaybackState>>, options: &NowOptions) 
 pub async fn now(options: NowOptions) -> Result<()> {
     if options.watch {
         execute!(stdout(), terminal::EnterAlternateScreen, cursor::Hide)?;
-    }
+    };
 
-    let shared_data = Arc::new(Mutex::new(PlaybackState {
-        state: "stopped".into(),
-        position: None,
-        playlist: None,
-        track: None,
-    }));
+    let (tx, mut rx) = mpsc::channel::<PlaybackStateDelta>(20);
+    let (tx_request_track, mut rx_request_track) = mpsc::channel::<bool>(20);
 
-    if options.watch {
-        let shared_data_state_update = shared_data.clone();
-        let shared_data_playback_tick = shared_data.clone();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
 
-        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
+    let state_task = tokio::spawn({
+        let tx = tx.clone();
+        let mut shutdown_rx = shutdown_rx.clone();
 
-        let state_task = tokio::spawn({
-            let mut shutdown_rx = shutdown_rx.clone();
+        async move {
+            let mut intvl = tokio::time::interval(Duration::from_secs(1));
 
-            async move {
-                let mut intvl = tokio::time::interval(Duration::from_secs(1));
-
-                loop {
-                    tokio::select! {
-                        _ = intvl.tick() => if let Err(err) = update_state(&shared_data_state_update).await {
-                            eprintln!("{err}");
-                        },
-                        _ = shutdown_rx.changed() => break,
-                    }
+            loop {
+                tokio::select! {
+                    _ = intvl.tick() => if let Err(err) = update_state(&tx, &mut rx_request_track).await {
+                        eprintln!("{err}");
+                    },
+                    _ = shutdown_rx.changed() => break,
                 }
             }
-        });
+        }
+    });
 
-        let display_task = tokio::spawn({
-            let mut shutdown_rx = shutdown_rx.clone();
-            let options = options.clone();
+    let playback_tick_period_ms = 250.0;
 
-            async move {
-                let mut intvl = tokio::time::interval(Duration::from_millis(250));
+    let playback_tick_task = tokio::spawn({
+        let mut shutdown_rx = shutdown_rx.clone();
+        let tx = tx.clone();
 
-                loop {
-                    tokio::select! {
-                        _ = intvl.tick() => { let _ = update_display(&shared_data, &options).await; }
-                        _ = shutdown_rx.changed() => break,
+        async move {
+            let mut intvl =
+                tokio::time::interval(Duration::from_millis(playback_tick_period_ms as u64));
+
+            loop {
+                tokio::select! {
+                    _ = intvl.tick() => {
+                        tx.send(PlaybackStateDelta::PositionTick).await.unwrap();
                     }
+                    _ = shutdown_rx.changed() => break,
                 }
             }
-        });
+        }
+    });
 
-        let playback_tick_period_ms = 250.0;
+    let display_task = tokio::spawn({
+        let mut shutdown_rx = shutdown_rx.clone();
+        let options = options.clone();
 
-        let playback_tick_task = tokio::spawn({
-            let mut shutdown_rx = shutdown_rx.clone();
+        async move {
+            let mut local_state = PlaybackState {
+                state: "stopped".into(),
+                playlist: None,
+                position: None,
+                track: None,
+            };
 
-            async move {
-                let mut intvl =
-                    tokio::time::interval(Duration::from_millis(playback_tick_period_ms as u64));
+            loop {
+                tokio::select! {
+                    delta = rx.recv() => {
+                        if let Some(delta) = delta {
+                            receive_delta(&mut local_state, &delta, &options, &tx_request_track).await.unwrap();
 
-                loop {
-                    tokio::select! {
-                        _ = intvl.tick() => {
-                            let _ = playback_tick(&shared_data_playback_tick, playback_tick_period_ms).await;
-                        }
-                        _ = shutdown_rx.changed() => break,
+                            if let PlaybackStateDelta::Render = delta  {
+                                if !options.watch {
+                                    break;
+                                }
+                            }
+                        };
                     }
-                }
-            }
-        });
 
-        let ctrlc_task = tokio::spawn(async move {
-            if ctrl_c().await.is_ok() {
-                let _ = shutdown_tx.send(());
+                    _ = shutdown_rx.changed() => break,
+                };
             }
-        });
+        }
+    });
 
-        tokio::try_join!(state_task, playback_tick_task, display_task, ctrlc_task)?;
-    } else {
-        update_state(&shared_data).await?;
-        update_display(&shared_data, &options).await?;
-    }
+    let ctrlc_task = tokio::spawn(async move {
+        if ctrl_c().await.is_ok() {
+            let _ = shutdown_tx.send(());
+        }
+    });
+
+    tokio::select!(
+        _ = state_task => {},
+        _ = playback_tick_task => {},
+        _ = display_task => {},
+        _ = ctrlc_task => {},
+    );
 
     if options.watch {
         execute!(stdout(), terminal::LeaveAlternateScreen, cursor::Show)?;
