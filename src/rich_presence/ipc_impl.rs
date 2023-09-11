@@ -79,14 +79,20 @@ impl DiscordIpc for DiscordIpcClient {
     }
 
     async fn write(&mut self, data: &[u8]) -> Result<()> {
-        let socket = self.socket.as_mut().expect("Client not connected");
+        let socket = self
+            .socket
+            .as_mut()
+            .ok_or_else(|| anyhow!("Client not connected"))?;
 
         if socket.write_all(data).await.is_err() {
             eprintln!("{} to Discord", "Reconnecting".yellow());
             self.connect_ipc().await?;
             self.send_handshake().await?;
 
-            let socket = self.socket.as_mut().expect("Client not connected");
+            let socket = self
+                .socket
+                .as_mut()
+                .ok_or_else(|| anyhow!("Client not connected"))?;
             socket.write_all(data).await?;
         };
 
@@ -94,14 +100,20 @@ impl DiscordIpc for DiscordIpcClient {
     }
 
     async fn read(&mut self, buffer: &mut [u8]) -> Result<()> {
-        let socket = self.socket.as_mut().unwrap();
+        let socket = self
+            .socket
+            .as_mut()
+            .ok_or_else(|| anyhow!("Client not connected"))?;
 
         if socket.read_exact(buffer).await.is_err() {
             eprintln!("{} to Discord", "Reconnecting".yellow());
             self.connect_ipc().await?;
             self.send_handshake().await?;
 
-            let socket = self.socket.as_mut().unwrap();
+            let socket = self
+                .socket
+                .as_mut()
+                .ok_or_else(|| anyhow!("Client not connected"))?;
             socket.read_exact(buffer).await?;
         };
 
