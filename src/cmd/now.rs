@@ -131,7 +131,6 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
     } else {
         let position = data
             .position
-            .clone()
             .ok_or_else(|| anyhow!("Could not obtain position from shared playback state"))?;
         let track = data
             .track
@@ -185,7 +184,7 @@ async fn receive_delta(
         }
 
         PlaybackStateDelta::Position(position) => {
-            data.position = position.clone();
+            data.position = *position;
         }
 
         PlaybackStateDelta::PositionTick => {
@@ -198,17 +197,14 @@ async fn receive_delta(
 
         PlaybackStateDelta::TrackIDRequestMoreInfo(id) => {
             if let Some(track) = &data.track {
-                tx_request_track
-                    .send(track.id != id.to_string())
-                    .await
-                    .unwrap();
+                tx_request_track.send(track.id != *id).await.unwrap();
             } else {
                 tx_request_track.send(true).await.unwrap();
             };
         }
 
         PlaybackStateDelta::Render => {
-            if let Err(err) = update_display(&data, &options).await {
+            if let Err(err) = update_display(data, options).await {
                 eprintln!("{}", err);
             };
         }
