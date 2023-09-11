@@ -14,56 +14,40 @@ pub struct Metadata {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SongAttributesArtworkResult {
+struct ArtworkResult {
     url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SongAttributesResult {
-    url: String,
-    artwork: SongAttributesArtworkResult,
+struct ArtistAttributes {
+    artwork: ArtworkResult,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SongResult {
+struct SongAttributes {
+    url: String,
+    artwork: ArtworkResult,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct DataResult<T> {
     id: String,
-    attributes: SongAttributesResult,
+    attributes: T,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SongDataResult {
-    data: Vec<SongResult>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct SongMetadataResult {
-    songs: SongDataResult,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ArtistAttributesArtworkResult {
-    url: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ArtistAttributesResult {
-    artwork: ArtistAttributesArtworkResult,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ArtistResult {
-    id: String,
-    attributes: ArtistAttributesResult,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ArtistDataResult {
-    data: Vec<ArtistResult>,
+struct WrappedDataResult<T> {
+    data: Vec<DataResult<T>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ArtistMetadataResult {
-    artists: ArtistDataResult,
+    artists: WrappedDataResult<ArtistAttributes>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SongMetadataResult {
+    songs: WrappedDataResult<SongAttributes>,
 }
 
 pub async fn get_metadata(client: &Client, track: &Track) -> Result<Metadata> {
