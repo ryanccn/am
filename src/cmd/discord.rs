@@ -88,7 +88,6 @@ async fn update_presence(
             &track.artist
         );
 
-        println!("need metadata now");
         let metadata = music::get_metadata(&http_client, &track).await?;
 
         let now_ts = chrono::offset::Local::now().timestamp();
