@@ -43,6 +43,7 @@ Dequarantine them with `xattr -d com.apple.quarantine <path>` and make them exec
 - Beautiful now playing display
 - Playback controls (play, pause, toggle, resume, back, forward, next, previous)
 - Discord rich presence
+- Launch agent installation
 - Shell completions
 
 ## Screenshots
@@ -68,9 +69,21 @@ Dequarantine them with `xattr -d com.apple.quarantine <path>` and make them exec
 
 </details>
 
-## Home Manager module
+## Discord presence launch agent
 
-This repository's flake also provides a Home Manager module at `homeManagerModules.default`. This module provides a service `am-discord-rich-presence` that you can enable so that `am`'s Discord rich presence runs in the background as long as you are logged in.
+Through a macOS launch agent, the Discord rich presence can be made to run in the background as long as you are logged in.
+
+### Standard installation
+
+You can install the Discord presence as a launch agent by running `am discord install`. Note that this depends on the executable/symlink staying in the same place; if it moves to a different place, run the command again.
+
+The `am` process running in the launch agent will log to `~/Library/Logs/am-discord-rich-presence.log`.
+
+You can uninstall the launch agent with `am discord uninstall`.
+
+### Home Manager
+
+This repository's flake also provides a Home Manager module at `homeManagerModules.default`. This module exposes a service `am-discord-rich-presence` that you can enable.
 
 ```nix
 {

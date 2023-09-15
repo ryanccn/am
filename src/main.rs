@@ -62,7 +62,10 @@ enum Commands {
     Previous,
 
     /// Connect to Discord rich presence
-    Discord,
+    Discord {
+        #[command(subcommand)]
+        command: Option<DiscordCommands>,
+    },
 
     /// Generate shell completions
     Completions {
@@ -70,6 +73,14 @@ enum Commands {
         #[arg(value_enum)]
         shell: Shell,
     },
+}
+
+#[derive(Subcommand, Debug)]
+enum DiscordCommands {
+    /// Install Discord presence launch agent
+    Install,
+    /// Uninstall Discord presence launch agent
+    Uninstall,
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -165,9 +176,21 @@ async fn main() -> Result<()> {
             .await?;
         }
 
-        Commands::Discord => {
-            cmd::discord().await?;
-        }
+        Commands::Discord { command } => match command {
+            Some(command) => match command {
+                DiscordCommands::Install => {
+                    cmd::discord::agent::install().await?;
+                    println!("{} Discord presence launch agent", "Installed".green());
+                }
+                DiscordCommands::Uninstall => {
+                    cmd::discord::agent::uninstall().await?;
+                    println!("{} Discord presence launch agent", "Uninstalled".green());
+                }
+            },
+            None => {
+                cmd::discord().await?;
+            }
+        },
 
         Commands::Completions { shell } => {
             let cli = &mut Cli::command();

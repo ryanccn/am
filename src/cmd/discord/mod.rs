@@ -13,6 +13,8 @@ use crate::{
     },
 };
 
+pub mod agent;
+
 #[derive(Debug, Clone)]
 struct ActivityConnection {
     last_song_id: Option<String>,
