@@ -11,7 +11,7 @@ mod format;
 mod music;
 mod rich_presence;
 
-/// Minimal Apple Music CLI
+/// Beautiful and feature-packed Apple Music CLI
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
