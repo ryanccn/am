@@ -58,15 +58,15 @@ async fn update_state(
 
         let track_id = data
             .next()
-            .ok_or_else(|| anyhow!("Could not obain track ID"))?
+            .ok_or_else(|| anyhow!("Could not obtain track ID"))?
             .to_owned();
         let player_position = data
             .next()
-            .ok_or_else(|| anyhow!("Could not obain player position"))?
+            .ok_or_else(|| anyhow!("Could not obtain player position"))?
             .to_owned();
         let playlist_name = data
             .next()
-            .ok_or_else(|| anyhow!("Could not obain playlist name"))?
+            .ok_or_else(|| anyhow!("Could not obtain playlist name"))?
             .to_owned();
 
         let player_position = player_position.parse::<f64>().ok();

@@ -72,23 +72,23 @@ pub async fn get_current_track() -> Result<Option<Track>> {
 
         let id = track_data
             .next()
-            .ok_or_else(|| anyhow!("Could not obain track ID"))?
+            .ok_or_else(|| anyhow!("Could not obtain track ID"))?
             .to_owned();
         let name = track_data
             .next()
-            .ok_or_else(|| anyhow!("Could not obain track name"))?
+            .ok_or_else(|| anyhow!("Could not obtain track name"))?
             .to_owned();
         let album = track_data
             .next()
-            .ok_or_else(|| anyhow!("Could not obain track album"))?
+            .ok_or_else(|| anyhow!("Could not obtain track album"))?
             .to_owned();
         let artist = track_data
             .next()
-            .ok_or_else(|| anyhow!("Could not obain track artist"))?
+            .ok_or_else(|| anyhow!("Could not obtain track artist"))?
             .to_owned();
         let duration = track_data
             .next()
-            .ok_or_else(|| anyhow!("Could not obain track duration"))?
+            .ok_or_else(|| anyhow!("Could not obtain track duration"))?
             .to_owned()
             .parse::<f64>()?;
 
