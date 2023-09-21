@@ -90,7 +90,7 @@ async fn update_presence(
             &track.artist
         );
 
-        let metadata = music::get_metadata(&http_client, &track).await?;
+        let metadata = music::get_metadata(&http_client, &track).await;
 
         let now_ts = chrono::offset::Local::now().timestamp();
         let start_ts = (now_ts as f64) - position;
@@ -100,30 +100,35 @@ async fn update_presence(
 
         let mut activity = Activity::new().details(&track.name).state(&activity_state);
 
-        let mut activity_assets = Assets::new()
-            .large_image(&metadata.album_artwork)
-            .large_text(&track.name);
+        if let Ok(metadata) = &metadata {
+            let mut activity_assets = Assets::new()
+                .large_image(&metadata.album_artwork)
+                .large_text(&track.name);
 
-        if let Some(artist_artwork) = metadata.artist_artwork {
-            activity_assets = activity_assets
-                .small_image(&artist_artwork)
-                .small_text(&track.artist);
+            if let Some(artist_artwork) = &metadata.artist_artwork {
+                activity_assets = activity_assets
+                    .small_image(&artist_artwork)
+                    .small_text(&track.artist);
+            }
+
+            activity = activity.assets(activity_assets);
         }
 
-        activity = activity.assets(activity_assets);
         activity = activity.timestamps(
             Timestamps::new()
                 .start(start_ts.floor() as i64)
                 .end(end_ts.ceil() as i64),
         );
 
-        activity = activity.buttons(vec![
-            Button::new("Listen on Apple Music", &metadata.share_url),
-            Button::new(
-                "View on SongLink",
-                &format!("https://song.link/i/{}", track.id),
-            ),
-        ]);
+        if let Ok(metadata) = &metadata {
+            activity = activity.buttons(vec![
+                Button::new("Listen on Apple Music", &metadata.share_url),
+                Button::new(
+                    "View on SongLink",
+                    &format!("https://song.link/i/{}", track.id),
+                ),
+            ]);
+        }
 
         client.set_activity(activity).await?;
     };
