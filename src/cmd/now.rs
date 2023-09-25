@@ -1,16 +1,25 @@
 use crate::{format, music};
 
 use anyhow::{anyhow, Result};
+use clap::Parser;
 use crossterm::{cursor, execute, terminal};
 use owo_colors::OwoColorize;
 
 use std::{io::stdout, time::Duration};
 use tokio::{signal::ctrl_c, sync::mpsc};
 
-#[derive(Debug, Clone)]
+#[derive(Parser, Debug)]
 pub struct NowOptions {
+    /// Switch to an alternate screen and update now playing until interrupted
+    #[arg(short, long)]
     pub watch: bool,
+
+    /// Disable Nerd Font symbols
+    #[arg(long)]
     pub no_nerd_fonts: bool,
+
+    /// Playback progress bar width
+    #[arg(long)]
     pub bar_width: Option<i32>,
 }
 
@@ -214,7 +223,9 @@ async fn receive_delta(
 }
 
 pub async fn now(options: NowOptions) -> Result<()> {
-    if options.watch {
+    let watch = options.watch;
+
+    if watch {
         execute!(stdout(), terminal::EnterAlternateScreen, cursor::Hide)?;
     };
 
@@ -264,7 +275,6 @@ pub async fn now(options: NowOptions) -> Result<()> {
 
     let display_task = tokio::spawn({
         let mut shutdown_rx = shutdown_rx.clone();
-        let options = options.clone();
 
         async move {
             let mut local_state = PlaybackState {
@@ -307,7 +317,7 @@ pub async fn now(options: NowOptions) -> Result<()> {
         _ = ctrlc_task => {},
     );
 
-    if options.watch {
+    if watch {
         execute!(stdout(), terminal::LeaveAlternateScreen, cursor::Show)?;
     }
 

@@ -22,19 +22,7 @@ struct Cli {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Show now playing
-    Now {
-        /// Switch to an alternate screen and update now playing until interrupted
-        #[arg(short, long)]
-        watch: bool,
-
-        /// Disable Nerd Font symbols
-        #[arg(long)]
-        no_nerd_fonts: bool,
-
-        /// Playback progress bar width
-        #[arg(long)]
-        bar_width: Option<i32>,
-    },
+    Now(cmd::NowOptions),
 
     /// Play the current track
     Play,
@@ -187,17 +175,8 @@ async fn main() -> Result<()> {
             concise_now_playing().await?;
         }
 
-        Commands::Now {
-            watch,
-            no_nerd_fonts,
-            bar_width,
-        } => {
-            cmd::now(cmd::NowOptions {
-                watch,
-                no_nerd_fonts,
-                bar_width,
-            })
-            .await?;
+        Commands::Now(options) => {
+            cmd::now(options).await?;
         }
 
         Commands::Discord { command } => match command {
@@ -211,6 +190,7 @@ async fn main() -> Result<()> {
                     println!("{} Discord presence launch agent", "Uninstalled".green());
                 }
             },
+
             None => {
                 cmd::discord().await?;
             }
