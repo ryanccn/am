@@ -1,6 +1,6 @@
 use std::io::stdout;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{generate, Shell};
@@ -87,13 +87,37 @@ enum DiscordCommands {
 compile_error!("am doesn't work on non-macOS platforms!");
 
 async fn concise_now_playing() -> Result<()> {
-    let (name, album, artist, duration) = tokio::try_join!(
-        music::tell("get {name} of current track"),
-        music::tell("get {album} of current track"),
-        music::tell("get {artist} of current track"),
-        music::tell("get {duration} of current track")
-    )?;
-    let duration = duration.parse::<f64>()?;
+    let track_data = music::tell_raw(&[
+        "set output to \"\"",
+        "tell application \"Music\"",
+        "set t_name to name of current track",
+        "set t_album to album of current track",
+        "set t_artist to artist of current track",
+        "set t_duration to duration of current track",
+        "set output to \"\" & t_id & \"\\n\" & t_name & \"\\n\" & t_album & \"\\n\" & t_artist & \"\\n\" & t_duration",
+        "end tell",
+        "return output"
+    ])
+    .await?;
+    let mut track_data = track_data.split('\n');
+
+    let name = track_data
+        .next()
+        .ok_or_else(|| anyhow!("Could not obtain track name"))?
+        .to_owned();
+    let album = track_data
+        .next()
+        .ok_or_else(|| anyhow!("Could not obtain track album"))?
+        .to_owned();
+    let artist = track_data
+        .next()
+        .ok_or_else(|| anyhow!("Could not obtain track artist"))?
+        .to_owned();
+    let duration = track_data
+        .next()
+        .ok_or_else(|| anyhow!("Could not obtain track duration"))?
+        .to_owned()
+        .parse::<f64>()?;
 
     println!(
         "{} {}\n{} · {}",

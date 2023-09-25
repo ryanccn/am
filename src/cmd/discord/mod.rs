@@ -155,7 +155,7 @@ pub async fn discord() -> Result<()> {
     loop {
         tokio::select! {
             _ = intvl.tick() => {
-                if let Err(err) = update_presence(&mut client,& http_client, &mut activity).await {
+                if let Err(err) = update_presence(&mut client, &http_client, &mut activity).await {
                     eprintln!("{} {}", "Error".red(), err);
                 }
             }
