@@ -8,7 +8,7 @@ authors = ["Ryan Cao <hello@ryanccn.dev>"]
 anyhow = "1.0.75"
 async-trait = "0.1.73"
 chrono = "0.4.31"
-clap = { version = "4.4.2", features = ["derive"] }
+clap = { version = "4.4.4", features = ["derive"] }
 clap_complete = "4.4.0"
 crossterm = "0.27.0"
 owo-colors = "3.5.0"
