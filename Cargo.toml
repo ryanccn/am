@@ -9,7 +9,7 @@ anyhow = "1.0.75"
 async-trait = "0.1.73"
 chrono = "0.4.31"
 clap = { version = "4.4.2", features = ["derive"] }
-clap_complete = "4.4.0"
+clap_complete = "4.4.1"
 crossterm = "0.27.0"
 owo-colors = "3.5.0"
 reqwest = { version = "0.11.20", features = [
