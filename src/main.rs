@@ -82,7 +82,7 @@ async fn concise_now_playing() -> Result<()> {
         "set t_album to album of current track",
         "set t_artist to artist of current track",
         "set t_duration to duration of current track",
-        "set output to \"\" & t_id & \"\\n\" & t_name & \"\\n\" & t_album & \"\\n\" & t_artist & \"\\n\" & t_duration",
+        "set output to \"\" & t_name & \"\\n\" & t_album & \"\\n\" & t_artist & \"\\n\" & t_duration",
         "end tell",
         "return output"
     ])
