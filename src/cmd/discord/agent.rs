@@ -58,7 +58,7 @@ pub async fn install() -> Result<()> {
     fs::write(&path, get_plist()?).await?;
 
     Command::new("launchctl")
-        .args(&["load", "-w", &path.to_string_lossy()])
+        .args(["load", "-w", &path.to_string_lossy()])
         .status()
         .await?;
 
@@ -74,7 +74,7 @@ pub async fn uninstall() -> Result<()> {
     }
 
     Command::new("launchctl")
-        .args(&["unload", &path.to_string_lossy()])
+        .args(["unload", &path.to_string_lossy()])
         .status()
         .await?;
 

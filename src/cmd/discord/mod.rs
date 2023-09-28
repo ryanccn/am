@@ -90,7 +90,7 @@ async fn update_presence(
             &track.artist
         );
 
-        let metadata = music::get_metadata(&http_client, &track).await;
+        let metadata = music::get_metadata(http_client, &track).await;
 
         let now_ts = chrono::offset::Local::now().timestamp();
         let start_ts = (now_ts as f64) - position;
@@ -107,7 +107,7 @@ async fn update_presence(
 
             if let Some(artist_artwork) = &metadata.artist_artwork {
                 activity_assets = activity_assets
-                    .small_image(&artist_artwork)
+                    .small_image(artist_artwork)
                     .small_text(&track.artist);
             }
 
