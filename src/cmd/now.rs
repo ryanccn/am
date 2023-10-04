@@ -1,4 +1,7 @@
-use crate::{format, music};
+use crate::{
+    format,
+    music::{self, PlayerState, Playlist, Track},
+};
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
@@ -25,20 +28,20 @@ pub struct NowOptions {
 
 #[derive(Debug, Clone)]
 struct PlaybackState {
-    state: String,
+    state: PlayerState,
     position: Option<f64>,
-    track: Option<music::Track>,
-    playlist: Option<music::Playlist>,
+    track: Option<Track>,
+    playlist: Option<Playlist>,
 }
 
 #[derive(Debug)]
 enum PlaybackStateDelta {
-    State(String),
+    State(PlayerState),
     Position(Option<f64>),
     PositionTick,
     TrackIDRequestMoreInfo(String),
-    Track(Option<music::Track>),
-    Playlist(Option<music::Playlist>),
+    Track(Option<Track>),
+    Playlist(Option<Playlist>),
     Render,
 }
 
@@ -46,11 +49,11 @@ async fn update_state(
     tx: &mpsc::Sender<PlaybackStateDelta>,
     rx_request_track: &mut mpsc::Receiver<bool>,
 ) -> Result<()> {
-    let player_state = music::tell("player state").await?;
-    tx.send(PlaybackStateDelta::State(player_state.clone()))
-        .await?;
+    let player_state = music::tell("player state").await?.parse::<PlayerState>()?;
 
-    if player_state != "stopped" {
+    tx.send(PlaybackStateDelta::State(player_state)).await?;
+
+    if player_state != PlayerState::Stopped {
         let data = music::tell_raw(&[
             "set output to \"\"",
             "tell application \"Music\"",
@@ -97,7 +100,7 @@ async fn update_state(
                 .await?
                 .parse::<i32>()?;
 
-            tx.send(PlaybackStateDelta::Playlist(Some(music::Playlist {
+            tx.send(PlaybackStateDelta::Playlist(Some(Playlist {
                 name: playlist_name.to_string(),
                 duration: playlist_duration,
             })))
@@ -135,7 +138,7 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
         )?;
     }
 
-    if data.state == "stopped" {
+    if data.state == PlayerState::Stopped {
         println!("Playback is {}", data.state.red());
     } else {
         let position = data
@@ -149,7 +152,11 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
         println!("{}", track.name.bold());
         println!(
             "{} {} {} {}",
-            format::format_player_state(&data.state, !options.no_nerd_fonts)?,
+            if !options.no_nerd_fonts {
+                data.state.to_icon()
+            } else {
+                data.state.to_string()
+            },
             format::format_duration(&(position as i32), false),
             make_bar(position / track.duration, options.bar_width)?,
             format::format_duration(&(track.duration as i32), true),
@@ -182,7 +189,7 @@ async fn receive_delta(
 ) -> Result<()> {
     match delta {
         PlaybackStateDelta::State(state) => {
-            data.state = state.to_string();
+            data.state = *state;
         }
 
         PlaybackStateDelta::Track(track) => {
@@ -197,7 +204,7 @@ async fn receive_delta(
         }
 
         PlaybackStateDelta::PositionTick => {
-            if data.state == "playing" {
+            if data.state == PlayerState::Playing {
                 if let Some(position) = data.position {
                     data.position = Some(position + 0.25);
                 }
@@ -278,7 +285,7 @@ pub async fn now(options: NowOptions) -> Result<()> {
 
         async move {
             let mut local_state = PlaybackState {
-                state: "stopped".into(),
+                state: PlayerState::Unknown,
                 playlist: None,
                 position: None,
                 track: None,

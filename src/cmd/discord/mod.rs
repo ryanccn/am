@@ -6,7 +6,7 @@ use anyhow::{anyhow, Result};
 use tokio::signal::ctrl_c;
 
 use crate::{
-    music,
+    music::{self, PlayerState},
     rich_presence::{
         activity::{Activity, Assets, Button, Timestamps},
         DiscordIpc, DiscordIpcClient,
@@ -39,7 +39,6 @@ async fn update_presence(
     };
 
     let initial_state = music::tell("get {player position, player state}").await?;
-
     let mut initial_state = initial_state.split(", ");
 
     let position = initial_state
@@ -47,9 +46,10 @@ async fn update_presence(
         .ok_or_else(|| anyhow!("Could not obtain player position"))?;
     let state = initial_state
         .next()
-        .ok_or_else(|| anyhow!("Could not obtain player state"))?;
+        .ok_or_else(|| anyhow!("Could not obtain player state"))?
+        .parse::<PlayerState>()?;
 
-    if state != "playing" {
+    if state != PlayerState::Playing {
         if !activity.is_idle {
             println!("{} any songs", "Not playing".yellow());
             activity.last_position = None;

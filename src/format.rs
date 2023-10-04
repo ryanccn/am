@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use owo_colors::OwoColorize;
 
 const HOUR: i32 = 60 * 60;
@@ -72,28 +71,4 @@ pub fn format_duration_plain(duration_secs: &i32) -> String {
 
     str = format!("{}{:.0}{}", str, duration_secs, "s");
     str
-}
-
-pub fn format_player_state(raw: &str, nerd_fonts: bool) -> Result<String> {
-    if nerd_fonts {
-        match raw {
-            "stopped" => Ok("".into()),
-            "playing" => Ok("".into()),
-            "paused" => Ok("".into()),
-            "fast forwarding" => Ok("".into()),
-            "rewinding" => Ok("".into()),
-            &_ => Err(anyhow!("Unexpected player state {}", raw)),
-        }
-    } else {
-        let mut ret = "".to_owned();
-        for (idx, char) in raw.char_indices() {
-            if idx == 0 {
-                ret += &char.to_uppercase().to_string();
-            } else {
-                ret += &char.to_string();
-            }
-        }
-
-        Ok(ret)
-    }
 }

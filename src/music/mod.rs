@@ -48,10 +48,71 @@ pub async fn tell(applescript: &str) -> Result<String> {
     tell_raw(&["tell application \"Music\"", applescript, "end tell"]).await
 }
 
-pub async fn get_current_track() -> Result<Option<Track>> {
-    let player_state = tell("get player state").await?;
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PlayerState {
+    Stopped,
+    Playing,
+    Paused,
+    Forwarding,
+    Rewinding,
+    Unknown,
+}
 
-    if player_state == "stopped" {
+impl PlayerState {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::Stopped => "stopped",
+            Self::Playing => "playing",
+            Self::Paused => "paused",
+            Self::Forwarding => "fast forwarding",
+            Self::Rewinding => "rewinding",
+            Self::Unknown => "unknown",
+        }
+        .into()
+    }
+
+    pub fn to_icon(&self) -> String {
+        match self {
+            Self::Stopped => "",
+            Self::Playing => "",
+            Self::Paused => "",
+            Self::Forwarding => "",
+            Self::Rewinding => "",
+            Self::Unknown => "?",
+        }
+        .into()
+    }
+}
+
+impl std::fmt::Display for PlayerState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
+impl std::str::FromStr for PlayerState {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "stopped" => Ok(Self::Stopped),
+            "playing" => Ok(Self::Playing),
+            "paused" => Ok(Self::Paused),
+            "fast forwarding" => Ok(Self::Forwarding),
+            "rewinding" => Ok(Self::Rewinding),
+            _ => Ok(Self::Unknown),
+        }
+    }
+}
+
+pub async fn get_player_state() -> Result<PlayerState> {
+    tell("get player state").await?.parse::<PlayerState>()
+}
+
+pub async fn get_current_track() -> Result<Option<Track>> {
+    let player_state = get_player_state().await?;
+
+    if player_state == PlayerState::Stopped {
         Ok(None)
     } else {
         let track_data = tell_raw(&[
