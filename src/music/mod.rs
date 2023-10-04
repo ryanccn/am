@@ -59,19 +59,7 @@ pub enum PlayerState {
 }
 
 impl PlayerState {
-    pub fn to_string(&self) -> String {
-        match self {
-            Self::Stopped => "stopped",
-            Self::Playing => "playing",
-            Self::Paused => "paused",
-            Self::Forwarding => "fast forwarding",
-            Self::Rewinding => "rewinding",
-            Self::Unknown => "unknown",
-        }
-        .into()
-    }
-
-    pub fn to_icon(&self) -> String {
+    pub fn to_icon(self) -> String {
         match self {
             Self::Stopped => "",
             Self::Playing => "",
@@ -86,7 +74,18 @@ impl PlayerState {
 
 impl std::fmt::Display for PlayerState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Stopped => "stopped",
+                Self::Playing => "playing",
+                Self::Paused => "paused",
+                Self::Forwarding => "fast forwarding",
+                Self::Rewinding => "rewinding",
+                Self::Unknown => "unknown",
+            }
+        )
     }
 }
 

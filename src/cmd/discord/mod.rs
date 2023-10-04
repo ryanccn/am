@@ -83,14 +83,15 @@ async fn update_presence(
         activity.last_song_id = Some(track.id.clone());
         activity.is_idle = false;
 
+        let metadata = music::get_metadata(http_client, &track).await;
+
         println!(
-            "{} {} - {}",
+            "{} {} · {} {}",
             "Song updated".blue(),
             &track.name,
-            &track.artist
+            &track.artist,
+            &track.id.dimmed()
         );
-
-        let metadata = music::get_metadata(http_client, &track).await;
 
         let now_ts = chrono::offset::Local::now().timestamp();
         let start_ts = (now_ts as f64) - position;
@@ -167,7 +168,7 @@ pub async fn discord() -> Result<()> {
 
     client.clear_activity().await?;
     client.close().await?;
-    println!("{} Discord presence", "Shutting down".yellow());
+    println!("{} Discord presence", "Shutting down".magenta());
 
     Ok(())
 }
