@@ -126,7 +126,7 @@ async fn update_presence(
                 Button::new("Listen on Apple Music", &metadata.share_url),
                 Button::new(
                     "View on SongLink",
-                    &format!("https://song.link/i/{}", track.id),
+                    &format!("https://song.link/i/{}", metadata.id),
                 ),
             ]);
         }
