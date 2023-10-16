@@ -6,7 +6,7 @@ authors = ["Ryan Cao <hello@ryanccn.dev>"]
 
 [dependencies]
 anyhow = "1.0.75"
-async-trait = "0.1.73"
+async-trait = "0.1.74"
 chrono = "0.4.31"
 clap = { version = "4.4.6", features = ["derive"] }
 clap_complete = "4.4.3"
