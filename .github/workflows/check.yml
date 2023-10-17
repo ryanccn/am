@@ -1,4 +1,4 @@
-name: Clippy
+name: Check
 
 on:
   push:
@@ -8,10 +8,7 @@ on:
 
 jobs:
   clippy:
-    runs-on: macos-latest
-    permissions:
-      contents: read
-      security-events: write
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -21,21 +18,29 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          components: rustfmt, clippy
+          components: clippy
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Install clippy-sarif
-        run: cargo install clippy-sarif
-
       - name: Run clippy
-        run: cargo clippy --all --all-targets --message-format=json | clippy-sarif > /tmp/clippy.sarif
+        run: cargo clippy --all
 
-      - name: Upload clippy results
-        uses: github/codeql-action/upload-sarif@v2
+  rustfmt:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          sarif_file: /tmp/clippy.sarif
+          toolchain: stable
+          components: rustfmt
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Run rustfmt
         run: cargo fmt --all -- --check
