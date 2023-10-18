@@ -41,7 +41,16 @@ pub async fn tell_raw(applescript: &[&str]) -> Result<String> {
     }
 
     let output = osascript_cmd.output().await?;
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    let success = output.status.success();
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+
+    if !success {
+        return Err(anyhow!(stderr));
+    }
+
+    Ok(stdout)
 }
 
 pub async fn tell(applescript: &str) -> Result<String> {

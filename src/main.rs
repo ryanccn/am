@@ -87,6 +87,7 @@ async fn concise_now_playing() -> Result<()> {
         "return output"
     ])
     .await?;
+
     let mut track_data = track_data.split('\n');
 
     let name = track_data
