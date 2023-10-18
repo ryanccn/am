@@ -86,11 +86,15 @@ async fn update_presence(
         let metadata = music::get_metadata(http_client, &track).await;
 
         println!(
-            "{} {} · {} {}",
+            "{} {} · {}{}",
             "Song updated".blue(),
             &track.name,
             &track.artist,
-            &track.id.dimmed()
+            if let Ok(metadata) = &metadata {
+                format!(" {}", metadata.id.dimmed())
+            } else {
+                "".to_owned()
+            }
         );
 
         let now_ts = chrono::offset::Local::now().timestamp();
