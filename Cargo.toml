@@ -2,7 +2,11 @@
 name = "am"
 version = "0.4.6"
 edition = "2021"
+
+description = "A beautiful and feature-packed Apple Music CLI"
 authors = ["Ryan Cao <hello@ryanccn.dev>"]
+license = "GPL-3.0-only"
+repository = "https://github.com/ryanccn/am.git"
 
 [dependencies]
 anyhow = "1.0.75"
