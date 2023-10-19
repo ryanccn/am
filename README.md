@@ -26,10 +26,10 @@ Then, use the overlay from `overlays.default` and add `am` to your packages. Alt
 
 ### Cargo
 
-You can install (the cutting-edge version of) `am` through `cargo`.
+You can install `am` through `cargo` from crates.io.
 
 ```console
-$ cargo install --git https://github.com/ryanccn/am.git
+$ cargo install am
 ```
 
 ### Manual download
@@ -101,6 +101,7 @@ This repository's flake also provides a Home Manager module at `homeManagerModul
 - [Raycast's Apple Music extension](https://github.com/raycast/extensions/tree/main/extensions/music) for a helpful reference of Apple Music's AppleScript interface usage
 - [sardonicism-04/discord-rich-presence](https://github.com/sardonicism-04/discord-rich-presence) for the original Rust crate for connecting to Discord
 - [caarlos0/discord-applemusic-rich-presence](https://github.com/caarlos0/discord-applemusic-rich-presence) for inspiring the Discord presence part of this CLI
+- [@ajaxm](https://github.com/ajaxm) for ceding ownership of the `am` package on crates.io
 
 ## License
 
