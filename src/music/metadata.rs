@@ -1,6 +1,5 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use url_escape::encode_component;
 
 use anyhow::{anyhow, Result};
 
@@ -50,21 +49,30 @@ struct SongMetadataResult {
     songs: WrappedDataResult<SongAttributes>,
 }
 
+fn make_api_url(type_: &str, term: &str) -> Result<reqwest::Url> {
+    let mut ret = "https://tools.applemediaservices.com/api/apple-media/music/US/search.json"
+        .parse::<reqwest::Url>()?;
+    ret.query_pairs_mut()
+        .append_pair("types", type_)
+        .append_pair("limit", "1")
+        .append_pair("term", term);
+
+    Ok(ret)
+}
+
 pub async fn get_metadata(client: &Client, track: &Track) -> Result<Metadata> {
-    let song_key_danger = track.artist.clone() + " " + &track.album + " " + &track.name;
-    let song_key = encode_component(&song_key_danger);
-    let artist_key_danger = track
+    let song_key = track.artist.clone() + " " + &track.album + " " + &track.name;
+    let artist_key = track
         .artist
         .split(&[',', '&'][..])
         .next()
         .ok_or_else(|| anyhow!("Could not obtain artist to query with"))?;
-    let artist_key = encode_component(&artist_key_danger);
 
     let mut artist_artwork: Option<String> = None;
 
     let (song_resp, artist_resp) = tokio::try_join!(
-        client.get(format!("https://tools.applemediaservices.com/api/apple-media/music/US/search.json?types=songs&limit=1&term={song_key}")).send(),
-        client.get(format!("https://tools.applemediaservices.com/api/apple-media/music/US/search.json?types=artists&limit=1&term={artist_key}")).send()
+        client.get(make_api_url("songs", &song_key)?).send(),
+        client.get(make_api_url("artists", &artist_key)?).send()
     )?;
 
     let (song_resp_data, artist_resp_data): (SongMetadataResult, ArtistMetadataResult) =
