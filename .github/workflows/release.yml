@@ -13,6 +13,28 @@ jobs:
 
   publish:
     needs: ["build"]
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Login
+        run: cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
+
+      - name: Publish
+        run: cargo publish
+
+  release:
+    needs: ["build"]
     runs-on: ubuntu-latest
 
     steps:
