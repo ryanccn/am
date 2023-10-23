@@ -72,7 +72,7 @@ pub async fn get_metadata(client: &Client, track: &Track) -> Result<Metadata> {
 
     let (song_resp, artist_resp) = tokio::try_join!(
         client.get(make_api_url("songs", &song_key)?).send(),
-        client.get(make_api_url("artists", &artist_key)?).send()
+        client.get(make_api_url("artists", artist_key)?).send()
     )?;
 
     let (song_resp_data, artist_resp_data): (SongMetadataResult, ArtistMetadataResult) =

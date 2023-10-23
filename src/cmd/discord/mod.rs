@@ -90,10 +90,9 @@ async fn update_presence(
             "Song updated".blue(),
             &track.name,
             &track.artist,
-            if let Ok(metadata) = &metadata {
-                format!(" {}", metadata.id.dimmed())
-            } else {
-                "".to_owned()
+            match &metadata {
+                Ok(metadata) => format!(" {}", metadata.id.dimmed()),
+                Err(_) => "".to_owned(),
             }
         );
 
