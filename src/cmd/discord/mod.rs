@@ -35,6 +35,8 @@ async fn update_presence(
             activity.is_idle = true;
         }
 
+        client.clear_activity().await?;
+
         return Ok(());
     };
 
