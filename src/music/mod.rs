@@ -47,7 +47,7 @@ pub async fn tell_raw(applescript: &[&str]) -> Result<String> {
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
 
     if !success {
-        return Err(anyhow!(stderr));
+        anyhow::bail!(stderr);
     }
 
     Ok(stdout)
