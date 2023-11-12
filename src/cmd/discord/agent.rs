@@ -23,10 +23,10 @@ fn get_plist() -> Result<String> {
         .join("am-discord-rich-presence.log");
     let log_file = log_file_path.to_string_lossy();
 
-    Ok(format!("
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
-<plist version=\"1.0\">
+    Ok(format!(r#"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
 <dict>
 	<key>KeepAlive</key>
 	<true/>
@@ -45,7 +45,7 @@ fn get_plist() -> Result<String> {
 	<string>{log_file}</string>
 </dict>
 </plist>
-    ").trim().to_owned() + "\n")
+    "#).trim().to_owned() + "\n")
 }
 
 pub async fn install() -> Result<()> {

@@ -54,7 +54,7 @@ pub async fn tell_raw(applescript: &[&str]) -> Result<String> {
 }
 
 pub async fn tell(applescript: &str) -> Result<String> {
-    tell_raw(&["tell application \"Music\"", applescript, "end tell"]).await
+    tell_raw(&[r#"tell application "Music""#, applescript, r#"end tell"#]).await
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -124,16 +124,16 @@ pub async fn get_current_track() -> Result<Option<Track>> {
         Ok(None)
     } else {
         let track_data = tell_raw(&[
-            "set output to \"\"",
-            "tell application \"Music\"",
-            "set t_id to database id of current track",
-            "set t_name to name of current track",
-            "set t_album to album of current track",
-            "set t_artist to artist of current track",
-            "set t_duration to duration of current track",
-            "set output to \"\" & t_id & \"\\n\" & t_name & \"\\n\" & t_album & \"\\n\" & t_artist & \"\\n\" & t_duration",
-            "end tell",
-            "return output"
+            r#"set output to """#,
+            r#"tell application "Music""#,
+            r#"set t_id to database id of current track"#,
+            r#"set t_name to name of current track"#,
+            r#"set t_album to album of current track"#,
+            r#"set t_artist to artist of current track"#,
+            r#"set t_duration to duration of current track"#,
+            r#"set output to "" & t_id & "\n" & t_name & "\n" & t_album & "\n" & t_artist & "\n" & t_duration"#,
+            r#"end tell"#,
+            r#"return output"#
         ])
         .await?;
 

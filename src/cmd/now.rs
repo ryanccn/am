@@ -55,14 +55,14 @@ async fn update_state(
 
     if player_state != PlayerState::Stopped {
         let data = music::tell_raw(&[
-            "set output to \"\"",
-            "tell application \"Music\"",
-            "set track_id to database id of current track",
-            "set player_position to player position",
-            "set playlist_name to name of current playlist",
-            "set output to \"\" & track_id & \"\\n\" & player_position & \"\\n\" & playlist_name",
-            "end tell",
-            "return output",
+            r#"set output to """#,
+            r#"tell application "Music""#,
+            r#"set track_id to database id of current track"#,
+            r#"set player_position to player position"#,
+            r#"set playlist_name to name of current playlist"#,
+            r#"set output to "" & track_id & "\n" & player_position & "\n" & playlist_name"#,
+            r#"end tell"#,
+            r#"return output"#,
         ])
         .await?;
 
