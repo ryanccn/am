@@ -10,7 +10,7 @@
     nixpkgs,
     ...
   }: let
-    version = self.dirtyShortRev;
+    version = self.dirtyShortRev or self.shortRev;
 
     inherit (nixpkgs) lib;
 
