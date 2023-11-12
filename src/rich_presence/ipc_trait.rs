@@ -11,6 +11,7 @@ use uuid::Uuid;
 /// A client that connects to and communicates with the Discord IPC.
 ///
 /// Implemented via the [`DiscordIpcClient`](struct@crate::rich_presence::DiscordIpcClient) struct.
+#[allow(clippy::cast_possible_truncation)]
 #[async_trait]
 pub trait DiscordIpc {
     /// Connects the client to the Discord IPC.
@@ -112,7 +113,7 @@ pub trait DiscordIpc {
     /// ```
     async fn send(&mut self, data: Value, opcode: u8) -> Result<()> {
         let data_string = data.to_string();
-        let header = pack(opcode.into(), data_string.len() as u32)?;
+        let header = pack(opcode.into(), data_string.len() as u32);
 
         self.write(&header).await?;
         self.write(data_string.as_bytes()).await?;
@@ -143,12 +144,12 @@ pub trait DiscordIpc {
         let mut header = [0; 8];
 
         self.read(&mut header).await?;
-        let (op, length) = unpack(header.to_vec())?;
+        let (op, length) = unpack(&header)?;
 
         let mut data = vec![0u8; length as usize];
         self.read(&mut data).await?;
 
-        let response = String::from_utf8(data.to_vec())?;
+        let response = String::from_utf8(data.clone())?;
         let json_data = serde_json::from_str::<Value>(&response)?;
 
         Ok((op, json_data))

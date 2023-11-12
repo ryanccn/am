@@ -22,6 +22,7 @@ struct ActivityConnection {
     is_idle: bool,
 }
 
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 async fn update_presence(
     client: &mut DiscordIpcClient,
     http_client: &reqwest::Client,
@@ -95,7 +96,7 @@ async fn update_presence(
             &track.artist,
             match &metadata {
                 Ok(metadata) => format!(" {}", metadata.id.dimmed()),
-                Err(_) => "".to_owned(),
+                Err(_) => String::new(),
             }
         );
 
@@ -144,7 +145,7 @@ async fn update_presence(
 }
 
 pub async fn discord() -> Result<()> {
-    let mut client = DiscordIpcClient::new("861702238472241162")?;
+    let mut client = DiscordIpcClient::new("861702238472241162");
     client.connect().await?;
 
     println!("{} to Discord", "Connected".green());

@@ -1,3 +1,7 @@
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::module_name_repetitions)]
+#![deny(unsafe_code)]
+
 use std::io::stdout;
 
 use anyhow::{anyhow, Result};
@@ -74,6 +78,7 @@ enum DiscordCommands {
 #[cfg(not(target_os = "macos"))]
 compile_error!("am doesn't work on non-macOS platforms!");
 
+#[allow(clippy::cast_possible_truncation)]
 async fn concise_now_playing() -> Result<()> {
     let track_data = music::tell_raw(&[
         "set output to \"\"",
@@ -111,7 +116,7 @@ async fn concise_now_playing() -> Result<()> {
     println!(
         "{} {}\n{} · {}",
         name.bold(),
-        format::format_duration_plain(&(duration as i32)).dimmed(),
+        format::format_duration_plain(duration as i32).dimmed(),
         artist.blue(),
         album.magenta(),
     );

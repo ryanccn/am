@@ -33,14 +33,12 @@ impl DiscordIpcClient {
     /// ```
     /// let ipc_client = DiscordIpcClient::new("<some client id>")?;
     /// ```
-    pub fn new(client_id: &str) -> Result<Self> {
-        let client = Self {
+    pub fn new(client_id: &str) -> Self {
+        Self {
             client_id: client_id.to_string(),
             connected: false,
             socket: None,
-        };
-
-        Ok(client)
+        }
     }
 
     fn get_pipe_pattern() -> PathBuf {
@@ -64,7 +62,7 @@ impl DiscordIpcClient {
 impl DiscordIpc for DiscordIpcClient {
     async fn connect_ipc(&mut self) -> Result<()> {
         for i in 0..10 {
-            let path = DiscordIpcClient::get_pipe_pattern().join(format!("discord-ipc-{}", i));
+            let path = DiscordIpcClient::get_pipe_pattern().join(format!("discord-ipc-{i}"));
 
             match UnixStream::connect(&path).await {
                 Ok(socket) => {

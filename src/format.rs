@@ -3,9 +3,9 @@ use owo_colors::OwoColorize;
 const HOUR: i32 = 60 * 60;
 const MINUTE: i32 = 60;
 
-pub fn format_duration(duration_secs: &i32, yellow: bool) -> String {
-    let mut duration_secs = *duration_secs;
-    let mut str = "".to_owned();
+pub fn format_duration(duration_secs: i32, yellow: bool) -> String {
+    let mut duration_secs = duration_secs;
+    let mut str = String::new();
     let mut has_started = false;
 
     if has_started || duration_secs >= HOUR {
@@ -48,9 +48,9 @@ pub fn format_duration(duration_secs: &i32, yellow: bool) -> String {
     str
 }
 
-pub fn format_duration_plain(duration_secs: &i32) -> String {
-    let mut duration_secs = *duration_secs;
-    let mut str = "".to_owned();
+pub fn format_duration_plain(duration_secs: i32) -> String {
+    let mut duration_secs = duration_secs;
+    let mut str = String::new();
     let mut has_started = false;
 
     if has_started || duration_secs > HOUR {

@@ -95,7 +95,9 @@ async fn update_state(
             tx.send(PlaybackStateDelta::Track(track)).await?;
         }
 
-        if !playlist_name.is_empty() {
+        if playlist_name.is_empty() {
+            tx.send(PlaybackStateDelta::Playlist(None)).await?;
+        } else {
             let playlist_duration = music::tell("get {duration} of current playlist")
                 .await?
                 .parse::<i32>()?;
@@ -105,8 +107,6 @@ async fn update_state(
                 duration: playlist_duration,
             })))
             .await?;
-        } else {
-            tx.send(PlaybackStateDelta::Playlist(None)).await?;
         };
     }
 
@@ -116,19 +116,21 @@ async fn update_state(
 }
 
 const BAR_CHAR: &str = "━";
+#[allow(clippy::cast_possible_truncation, clippy::cast_lossless)]
 fn make_bar(n: f64, width: Option<i32>) -> Result<String> {
     let width = width.unwrap_or(20);
 
     let part_one = (n * (width as f64)).floor() as i32;
     let part_two = width - part_one;
 
-    let mut ret = "".to_owned();
+    let mut ret = String::new();
     ret += &BAR_CHAR.repeat(part_one.try_into()?);
     ret += &BAR_CHAR.dimmed().to_string().repeat(part_two.try_into()?);
 
     Ok(ret)
 }
 
+#[allow(clippy::unused_async, clippy::cast_possible_truncation)]
 async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()> {
     if options.watch {
         execute!(
@@ -152,14 +154,14 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
         println!("{}", track.name.bold());
         println!(
             "{} {} {} {}",
-            if !options.no_nerd_fonts {
-                data.state.to_icon()
-            } else {
+            if options.no_nerd_fonts {
                 data.state.to_string()
+            } else {
+                data.state.to_icon()
             },
-            format::format_duration(&(position as i32), false),
+            format::format_duration(position as i32, false),
             make_bar(position / track.duration, options.bar_width)?,
-            format::format_duration(&(track.duration as i32), true),
+            format::format_duration(track.duration as i32, true),
         );
         println!("{} · {}", track.artist.blue(), track.album.magenta());
 
@@ -169,7 +171,7 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
                 format!(
                     "Playlist: {} ({})",
                     playlist.name,
-                    format::format_duration_plain(&playlist.duration)
+                    format::format_duration_plain(playlist.duration)
                 )
                 .dimmed()
             );
@@ -221,7 +223,7 @@ async fn receive_delta(
 
         PlaybackStateDelta::Render => {
             if let Err(err) = update_display(data, options).await {
-                eprintln!("{}", err);
+                eprintln!("{err}");
             };
         }
     };
@@ -229,6 +231,7 @@ async fn receive_delta(
     Ok(())
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub async fn now(options: NowOptions) -> Result<()> {
     let watch = options.watch;
 
