@@ -1,11 +1,11 @@
 use crate::rich_presence::{
     activity::Activity,
+    errors::RichPresenceError,
     pack_unpack::{pack, unpack},
 };
 use async_trait::async_trait;
 use serde_json::{json, Value};
 
-use anyhow::Result;
 use uuid::Uuid;
 
 /// A client that connects to and communicates with the Discord IPC.
@@ -30,7 +30,7 @@ pub trait DiscordIpc {
     /// let mut client = crate::rich_presence::new_client("<some client id>")?;
     /// client.connect()?;
     /// ```
-    async fn connect(&mut self) -> Result<()> {
+    async fn connect(&mut self) -> Result<(), RichPresenceError> {
         self.connect_ipc().await?;
         self.send_handshake().await?;
 
@@ -56,7 +56,7 @@ pub trait DiscordIpc {
     /// client.close().await?;
     /// client.reconnect().await?;
     /// ```
-    async fn reconnect(&mut self) -> Result<()> {
+    async fn reconnect(&mut self) -> Result<(), RichPresenceError> {
         self.close().await?;
         self.connect_ipc().await?;
         self.send_handshake().await?;
@@ -68,7 +68,7 @@ pub trait DiscordIpc {
     fn get_client_id(&self) -> &String;
 
     #[doc(hidden)]
-    async fn connect_ipc(&mut self) -> Result<()>;
+    async fn connect_ipc(&mut self) -> Result<(), RichPresenceError>;
 
     /// Handshakes the Discord IPC.
     ///
@@ -82,7 +82,7 @@ pub trait DiscordIpc {
     /// # Errors
     ///
     /// Returns an `Err` variant if sending the handshake failed.
-    async fn send_handshake(&mut self) -> Result<()> {
+    async fn send_handshake(&mut self) -> Result<(), RichPresenceError> {
         self.send(
             json!({
                 "v": 1,
@@ -111,7 +111,7 @@ pub trait DiscordIpc {
     /// let payload = serde_json::json!({ "field": "value" });
     /// client.send(payload, 0).await?;
     /// ```
-    async fn send(&mut self, data: Value, opcode: u8) -> Result<()> {
+    async fn send(&mut self, data: Value, opcode: u8) -> Result<(), RichPresenceError> {
         let data_string = data.to_string();
         let header = pack(opcode.into(), data_string.len() as u32);
 
@@ -122,7 +122,9 @@ pub trait DiscordIpc {
     }
 
     #[doc(hidden)]
-    async fn write(&mut self, data: &[u8]) -> Result<()>;
+    async fn write_once(&mut self, data: &[u8]) -> Result<(), RichPresenceError>;
+    #[doc(hidden)]
+    async fn write(&mut self, data: &[u8]) -> Result<(), RichPresenceError>;
 
     /// Receives an opcode and JSON data from the Discord IPC.
     ///
@@ -140,7 +142,7 @@ pub trait DiscordIpc {
     ///
     /// println!("{:?}", client.recv().await?);
     /// ```
-    async fn recv(&mut self) -> Result<(u32, Value)> {
+    async fn recv(&mut self) -> Result<(u32, Value), RichPresenceError> {
         let mut header = [0; 8];
 
         self.read(&mut header).await?;
@@ -149,14 +151,18 @@ pub trait DiscordIpc {
         let mut data = vec![0u8; length as usize];
         self.read(&mut data).await?;
 
-        let response = String::from_utf8(data.clone())?;
-        let json_data = serde_json::from_str::<Value>(&response)?;
+        let response =
+            String::from_utf8(data.clone()).map_err(|_| RichPresenceError::RecvInvalidPacket)?;
+        let json_data = serde_json::from_str::<Value>(&response)
+            .map_err(|_| RichPresenceError::RecvInvalidPacket)?;
 
         Ok((op, json_data))
     }
 
     #[doc(hidden)]
-    async fn read(&mut self, buffer: &mut [u8]) -> Result<()>;
+    async fn read_once(&mut self, buffer: &mut [u8]) -> Result<(), RichPresenceError>;
+    #[doc(hidden)]
+    async fn read(&mut self, buffer: &mut [u8]) -> Result<(), RichPresenceError>;
 
     /// Sets a Discord activity.
     ///
@@ -168,7 +174,7 @@ pub trait DiscordIpc {
     ///
     /// # Errors
     /// Returns an `Err` variant if sending the payload failed.
-    async fn set_activity(&mut self, activity_payload: Activity) -> Result<()> {
+    async fn set_activity(&mut self, activity_payload: Activity) -> Result<(), RichPresenceError> {
         let data = json!({
             "cmd": "SET_ACTIVITY",
             "args": {
@@ -188,7 +194,7 @@ pub trait DiscordIpc {
     ///
     /// # Errors
     /// Returns an `Err` variant if sending the payload failed.
-    async fn clear_activity(&mut self) -> Result<()> {
+    async fn clear_activity(&mut self) -> Result<(), RichPresenceError> {
         let data = json!({
             "cmd": "SET_ACTIVITY",
             "args": {
@@ -204,5 +210,5 @@ pub trait DiscordIpc {
     }
 
     /// Closes the Discord IPC connection. Implementation is dependent on platform.
-    async fn close(&mut self) -> Result<()>;
+    async fn close(&mut self) -> Result<(), RichPresenceError>;
 }

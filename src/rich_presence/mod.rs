@@ -18,6 +18,9 @@
 //! }
 //! ```
 
+mod errors;
+pub use errors::RichPresenceError;
+
 mod ipc_trait;
 mod pack_unpack;
 

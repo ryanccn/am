@@ -1,4 +1,4 @@
-use anyhow::Result;
+use super::errors::RichPresenceError;
 use std::convert::TryInto;
 
 // Re-implement some packing methods in Rust
@@ -12,11 +12,19 @@ pub fn pack(opcode: u32, data_len: u32) -> Vec<u8> {
     bytes
 }
 
-pub fn unpack(data: &[u8]) -> Result<(u32, u32)> {
+pub fn unpack(data: &[u8]) -> Result<(u32, u32), RichPresenceError> {
     let (opcode, header) = data.split_at(std::mem::size_of::<u32>());
 
-    let opcode = u32::from_le_bytes(opcode.try_into()?);
-    let header = u32::from_le_bytes(header.try_into()?);
+    let opcode = u32::from_le_bytes(
+        opcode
+            .try_into()
+            .map_err(|_| RichPresenceError::RecvInvalidPacket)?,
+    );
+    let header = u32::from_le_bytes(
+        header
+            .try_into()
+            .map_err(|_| RichPresenceError::RecvInvalidPacket)?,
+    );
 
     Ok((opcode, header))
 }

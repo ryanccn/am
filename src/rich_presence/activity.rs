@@ -4,8 +4,7 @@ use serde::Serialize;
 
 /// A struct representing a Discord rich presence activity
 ///
-/// Note that all methods return `Self`, and can be chained
-/// for fluency
+/// Note that all methods return `Self`, and can be chained for fluency
 #[derive(Serialize, Clone, Debug)]
 pub struct Activity {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -32,8 +31,7 @@ pub struct Activity {
 
 /// A struct representing an `Activity`'s timestamps
 ///
-/// Note that all methods return `Self`, and can be chained
-/// for fluency
+/// Note that all methods return `Self`, and can be chained for fluency
 #[derive(Serialize, Clone, Debug)]
 pub struct Timestamps {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -45,8 +43,7 @@ pub struct Timestamps {
 
 /// A struct representing an `Activity`'s game party
 ///
-/// Note that all methods return `Self`, and can be chained
-/// for fluency
+/// Note that all methods return `Self`, and can be chained for fluency
 #[derive(Serialize, Clone, Debug)]
 pub struct Party {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -56,11 +53,9 @@ pub struct Party {
     size: Option<[i32; 2]>,
 }
 
-/// A struct representing the art assets and hover text
-/// used by an `Activity`
+/// A struct representing the art assets and hover text used by an `Activity`
 ///
-/// Note that all methods return `Self`, and can be chained
-/// for fluency
+/// Note that all methods return `Self`, and can be chained for fluency
 #[derive(Serialize, Clone, Debug)]
 pub struct Assets {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -76,11 +71,9 @@ pub struct Assets {
     small_text: Option<String>,
 }
 
-/// A struct representing the secrets used by an
-/// `Activity`
+/// A struct representing the secrets used by an `Activity`
 ///
-/// Note that all methods return `Self`, and can be chained
-/// for fluency
+/// Note that all methods return `Self`, and can be chained for fluency
 #[derive(Serialize, Clone, Debug)]
 pub struct Secrets {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -224,8 +217,7 @@ impl Party {
     ///
     /// # Example
     /// ```
-    /// // Creates a party with a current size
-    /// // of 1, and a max size of 3
+    /// // Creates a party with a current size of 1, and a max size of 3
     /// let party = Party::new().size([1, 3])
     /// ```
     pub fn size(mut self, size: [i32; 2]) -> Self {
@@ -252,35 +244,29 @@ impl Assets {
         }
     }
 
-    /// Sets the name of the art asset to be used as the large
-    /// image
+    /// Sets the name of the art asset to be used as the large image
     ///
-    /// Alternatively, the URL of the resource to be used as
-    /// the large image
+    /// Alternatively, the URL of the resource to be used as the large image
     pub fn large_image(mut self, large_image: &str) -> Self {
         self.large_image = Some(large_image.to_owned());
         self
     }
 
-    /// Sets the text to be shown when hovering over the large
-    /// image
+    /// Sets the text to be shown when hovering over the large image
     pub fn large_text(mut self, large_text: &str) -> Self {
         self.large_text = Some(large_text.to_owned());
         self
     }
 
-    /// Sets the name of the art asset to be used as the small
-    /// image
+    /// Sets the name of the art asset to be used as the small image
     ///
-    /// Alternatively, the URL of the resource to be used as
-    /// the small image
+    /// Alternatively, the URL of the resource to be used as the small image
     pub fn small_image(mut self, small_image: &str) -> Self {
         self.small_image = Some(small_image.to_owned());
         self
     }
 
-    /// Sets the text that is shown when hovering over the small
-    /// image
+    /// Sets the text that is shown when hovering over the small image
     pub fn small_text(mut self, small_text: &str) -> Self {
         self.small_text = Some(small_text.to_owned());
         self
@@ -331,12 +317,10 @@ impl Default for Secrets {
 
 #[allow(dead_code)]
 impl Button {
-    /// Creates a new `Button` with the given label and
-    /// URL
+    /// Creates a new `Button` with the given label and URL
     ///
-    /// The label must be 1-32 characters long
-    ///
-    /// The URL must be 1-512 characters long
+    /// - The label must be 1-32 characters long
+    /// - The URL must be 1-512 characters long
     pub fn new(label: &str, url: &str) -> Self {
         Button {
             label: label.to_owned(),

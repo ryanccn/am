@@ -9,14 +9,14 @@ use crate::{
     music::{self, PlayerState},
     rich_presence::{
         activity::{Activity, Assets, Button, Timestamps},
-        DiscordIpc, DiscordIpcClient,
+        DiscordIpc, DiscordIpcClient, RichPresenceError,
     },
 };
 
 pub mod agent;
 
 #[derive(Debug, Clone)]
-struct ActivityConnection {
+struct ActivityState {
     last_song_id: Option<String>,
     last_position: Option<f64>,
     is_idle: bool,
@@ -26,18 +26,17 @@ struct ActivityConnection {
 async fn update_presence(
     client: &mut DiscordIpcClient,
     http_client: &reqwest::Client,
-    activity: &mut ActivityConnection,
+    state: &mut ActivityState,
 ) -> Result<()> {
     if !music::is_running().await? {
-        if !activity.is_idle {
+        if !state.is_idle {
             println!("{} any songs", "Not playing".yellow());
-            activity.last_position = None;
-            activity.last_song_id = None;
-            activity.is_idle = true;
+            state.last_position = None;
+            state.last_song_id = None;
+            state.is_idle = true;
         }
 
         client.clear_activity().await?;
-
         return Ok(());
     };
 
@@ -47,17 +46,17 @@ async fn update_presence(
     let position = initial_state
         .next()
         .ok_or_else(|| anyhow!("Could not obtain player position"))?;
-    let state = initial_state
+    let player_state = initial_state
         .next()
         .ok_or_else(|| anyhow!("Could not obtain player state"))?
         .parse::<PlayerState>()?;
 
-    if state != PlayerState::Playing {
-        if !activity.is_idle {
+    if player_state != PlayerState::Playing {
+        if !state.is_idle {
             println!("{} any songs", "Not playing".yellow());
-            activity.last_position = None;
-            activity.last_song_id = None;
-            activity.is_idle = true;
+            state.last_position = None;
+            state.last_song_id = None;
+            state.is_idle = true;
         }
 
         client.clear_activity().await?;
@@ -72,9 +71,9 @@ async fn update_presence(
 
     let mut ongoing = false;
 
-    if let Some(last_song_id) = &activity.last_song_id {
+    if let Some(last_song_id) = &state.last_song_id {
         if *last_song_id == track.id {
-            if let Some(last_position) = &activity.last_position {
+            if let Some(last_position) = &state.last_position {
                 if last_position <= &position {
                     ongoing = true;
                 }
@@ -83,22 +82,7 @@ async fn update_presence(
     }
 
     if !ongoing {
-        activity.last_position = Some(position);
-        activity.last_song_id = Some(track.id.clone());
-        activity.is_idle = false;
-
-        let metadata = music::get_metadata(http_client, &track).await;
-
-        println!(
-            "{} {} · {}{}",
-            "Song updated".blue(),
-            &track.name,
-            &track.artist,
-            match &metadata {
-                Ok(metadata) => format!(" {}", metadata.id.dimmed()),
-                Err(_) => String::new(),
-            }
-        );
+        let metadata = music::get_metadata(http_client, &track).await.ok();
 
         let now_ts = chrono::offset::Local::now().timestamp();
         let start_ts = (now_ts as f64) - position;
@@ -108,7 +92,7 @@ async fn update_presence(
 
         let mut activity = Activity::new().details(&track.name).state(&activity_state);
 
-        if let Ok(metadata) = &metadata {
+        if let Some(metadata) = &metadata {
             let mut activity_assets = Assets::new()
                 .large_image(&metadata.album_artwork)
                 .large_text(&track.name);
@@ -128,7 +112,7 @@ async fn update_presence(
                 .end(end_ts.ceil() as i64),
         );
 
-        if let Ok(metadata) = &metadata {
+        if let Some(metadata) = &metadata {
             activity = activity.buttons(vec![
                 Button::new("Listen on Apple Music", &metadata.share_url),
                 Button::new(
@@ -139,6 +123,21 @@ async fn update_presence(
         }
 
         client.set_activity(activity).await?;
+
+        println!(
+            "{} {} · {}{}",
+            "Song updated".blue(),
+            &track.name,
+            &track.artist,
+            match &metadata {
+                Some(metadata) => format!(" {}", metadata.id.dimmed()),
+                None => String::new(),
+            }
+        );
+
+        state.last_position = Some(position);
+        state.last_song_id = Some(track.id.clone());
+        state.is_idle = false;
     };
 
     Ok(())
@@ -146,15 +145,17 @@ async fn update_presence(
 
 pub async fn discord() -> Result<()> {
     let mut client = DiscordIpcClient::new("861702238472241162");
-    client.connect().await?;
+    if client.connect().await.is_ok() {
+        println!("{} to Discord", "Connected".green());
+    }
 
-    println!("{} to Discord", "Connected".green());
-
-    let mut activity = ActivityConnection {
+    let mut state = ActivityState {
         last_position: None,
         last_song_id: None,
         is_idle: false,
     };
+
+    let mut last_connect_failed = false;
 
     let http_client = reqwest::Client::new();
 
@@ -163,19 +164,33 @@ pub async fn discord() -> Result<()> {
     loop {
         tokio::select! {
             _ = intvl.tick() => {
-                if let Err(err) = update_presence(&mut client, &http_client, &mut activity).await {
-                    eprintln!("{} {}", "Error".red(), err);
+                if let Err(err) = update_presence(&mut client, &http_client, &mut state).await {
+                    match err.downcast_ref::<RichPresenceError>() {
+                        Some(_) => {
+                            if !last_connect_failed {
+                                eprintln!("{} from Discord", "Disconnected".red());
+                                last_connect_failed = true;
+                            }
+                        },
+                        None => {
+                            eprintln!("{} {}", "Error".red(), err);
+                        },
+                    }
+                } else if last_connect_failed {
+                    last_connect_failed = false;
+                    eprintln!("{} to Discord", "Connected".green());
                 }
             }
+
             _ = ctrl_c() => {
                 break;
             }
         }
     }
 
+    println!("{} Discord presence", "Shutting down".magenta());
     client.clear_activity().await?;
     client.close().await?;
-    println!("{} Discord presence", "Shutting down".magenta());
 
     Ok(())
 }
