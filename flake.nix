@@ -10,7 +10,7 @@
     nixpkgs,
     ...
   }: let
-    version = builtins.substring 0 8 self.lastModifiedDate or "dirty";
+    version = self.dirtyShortRev;
 
     inherit (nixpkgs) lib;
 
