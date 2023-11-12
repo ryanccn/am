@@ -10,7 +10,7 @@ pub use metadata::*;
 
 pub async fn is_running() -> Result<bool> {
     Ok(Command::new("pgrep")
-        .arg("Music")
+        .arg(r"^Music$")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
