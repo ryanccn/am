@@ -87,12 +87,12 @@ impl std::fmt::Display for PlayerState {
             f,
             "{}",
             match self {
-                Self::Stopped => "Stopped",
-                Self::Playing => "Playing",
-                Self::Paused => "Paused",
-                Self::Forwarding => "Fast forwarding",
-                Self::Rewinding => "Rewinding",
-                Self::Unknown => "Unknown",
+                Self::Stopped => "stopped",
+                Self::Playing => "playing",
+                Self::Paused => "paused",
+                Self::Forwarding => "fast forwarding",
+                Self::Rewinding => "rewinding",
+                Self::Unknown => "unknown",
             }
         )
     }
