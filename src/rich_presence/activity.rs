@@ -1,5 +1,6 @@
 //! Provides an interface for building activities to send
 //! to Discord via [`DiscordIpc::set_activity`](crate::rich_presence::DiscordIpc::set_activity).
+use super::RichPresenceError;
 use serde::Serialize;
 
 /// A struct representing a Discord rich presence activity
@@ -25,8 +26,12 @@ pub struct Activity {
     #[serde(skip_serializing_if = "Option::is_none")]
     secrets: Option<Secrets>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "skip_serializing_buttons")]
     buttons: Option<Vec<Button>>,
+}
+
+fn skip_serializing_buttons(value: &Option<Vec<Button>>) -> bool {
+    !value.clone().is_some_and(|v| !v.is_empty())
 }
 
 /// A struct representing an `Activity`'s timestamps
@@ -149,16 +154,17 @@ impl Activity {
 
     /// Add a `Vec` of `Button`s to this activity
     ///
-    /// An activity may contain no more than 2 buttons
-    pub fn buttons(mut self, buttons: Vec<Button>) -> Self {
-        // API call fails if the array is empty, so we skip serialization
-        // entirely if this is the case
+    /// An activity may contain no more than 2 buttons.
+    pub fn buttons(mut self, buttons: Vec<Button>) -> Result<Self, RichPresenceError> {
         if buttons.is_empty() {
-            return self;
-        }
+            self.buttons = None;
+        } else if buttons.len() > 2 {
+            return Err(RichPresenceError::TooManyButtons(buttons.len()));
+        } else {
+            self.buttons = Some(buttons);
+        };
 
-        self.buttons = Some(buttons);
-        self
+        Ok(self)
     }
 }
 
@@ -321,10 +327,14 @@ impl Button {
     ///
     /// - The label must be 1-32 characters long
     /// - The URL must be 1-512 characters long
-    pub fn new(label: &str, url: &str) -> Self {
-        Button {
+    pub fn new(label: &str, url: &str) -> Result<Self, RichPresenceError> {
+        if label.is_empty() || label.len() > 32 || url.is_empty() || url.len() > 512 {
+            return Err(RichPresenceError::ButtonCreateInvalidValue);
+        }
+
+        Ok(Button {
             label: label.to_owned(),
             url: url.to_owned(),
-        }
+        })
     }
 }

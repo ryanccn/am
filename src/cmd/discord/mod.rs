@@ -114,12 +114,12 @@ async fn update_presence(
 
         if let Some(metadata) = &metadata {
             activity = activity.buttons(vec![
-                Button::new("Listen on Apple Music", &metadata.share_url),
+                Button::new("Listen on Apple Music", &metadata.share_url)?,
                 Button::new(
                     "View on SongLink",
                     &format!("https://song.link/i/{}", metadata.id),
-                ),
-            ]);
+                )?,
+            ])?;
         }
 
         client.set_activity(activity).await?;
@@ -166,13 +166,13 @@ pub async fn discord() -> Result<()> {
             _ = intvl.tick() => {
                 if let Err(err) = update_presence(&mut client, &http_client, &mut state).await {
                     match err.downcast_ref::<RichPresenceError>() {
-                        Some(_) => {
+                        Some(RichPresenceError::CouldNotConnect | RichPresenceError::WriteSocketFailed) => {
                             if !last_connect_failed {
                                 eprintln!("{} from Discord", "Disconnected".red());
                                 last_connect_failed = true;
                             }
                         },
-                        None => {
+                        _ => {
                             eprintln!("{} {}", "Error".red(), err);
                         },
                     }

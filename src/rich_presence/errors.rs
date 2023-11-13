@@ -12,4 +12,9 @@ pub enum RichPresenceError {
     ReadSocketFailed,
     #[error("Failed to flush socket")]
     FlushSocketFailed,
+
+    #[error("Invalid value when creating button")]
+    ButtonCreateInvalidValue,
+    #[error("Too many ({0}) buttons provided to activity")]
+    TooManyButtons(usize),
 }
