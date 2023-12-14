@@ -57,12 +57,12 @@ async fn update_state(
         let data = music::tell_raw(&[
             r#"set output to """#,
             r#"tell application "Music""#,
-            r#"set track_id to database id of current track"#,
-            r#"set player_position to player position"#,
-            r#"set playlist_name to name of current playlist"#,
+            r"set track_id to database id of current track",
+            r"set player_position to player position",
+            r"set playlist_name to name of current playlist",
             r#"set output to "" & track_id & "\n" & player_position & "\n" & playlist_name"#,
-            r#"end tell"#,
-            r#"return output"#,
+            r"end tell",
+            r"return output",
         ])
         .await?;
 

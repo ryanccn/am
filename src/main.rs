@@ -83,13 +83,13 @@ async fn concise_now_playing() -> Result<()> {
     let track_data = music::tell_raw(&[
         r#"set output to """#,
         r#"tell application "Music""#,
-        r#"set t_name to name of current track"#,
-        r#"set t_album to album of current track"#,
-        r#"set t_artist to artist of current track"#,
-        r#"set t_duration to duration of current track"#,
+        r"set t_name to name of current track",
+        r"set t_album to album of current track",
+        r"set t_artist to artist of current track",
+        r"set t_duration to duration of current track",
         r#"set output to "" & t_name & "\n" & t_album & "\n" & t_artist & "\n" & t_duration"#,
-        r#"end tell"#,
-        r#"return output"#,
+        r"end tell",
+        r"return output",
     ])
     .await?;
 
