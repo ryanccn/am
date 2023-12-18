@@ -41,7 +41,7 @@ jobs:
         run: cp ./target/${{ matrix.target }}/release/am ./am-${{ matrix.target }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: am-${{ matrix.target }}
           path: ./am-${{ matrix.target }}
