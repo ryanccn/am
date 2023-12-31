@@ -2,4 +2,4 @@ builds:
   exclude: []
   include:
     - "packages.aarch64-darwin.*"
-    - "packages.x86_64-darwin.*"
+    # - "packages.x86_64-darwin.*"
