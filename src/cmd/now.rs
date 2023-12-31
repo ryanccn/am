@@ -3,8 +3,8 @@ use crate::{
     music::{self, PlayerState, Playlist, Track},
 };
 
-use anyhow::{anyhow, Result};
 use clap::Parser;
+use color_eyre::eyre::{eyre, Result};
 use crossterm::{cursor, execute, terminal};
 use owo_colors::OwoColorize;
 
@@ -70,15 +70,15 @@ async fn update_state(
 
         let track_id = data
             .next()
-            .ok_or_else(|| anyhow!("Could not obtain track ID"))?
+            .ok_or_else(|| eyre!("Could not obtain track ID"))?
             .to_owned();
         let player_position = data
             .next()
-            .ok_or_else(|| anyhow!("Could not obtain player position"))?
+            .ok_or_else(|| eyre!("Could not obtain player position"))?
             .to_owned();
         let playlist_name = data
             .next()
-            .ok_or_else(|| anyhow!("Could not obtain playlist name"))?
+            .ok_or_else(|| eyre!("Could not obtain playlist name"))?
             .to_owned();
 
         let player_position = player_position.parse::<f64>().ok();
@@ -145,11 +145,11 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
     } else {
         let position = data
             .position
-            .ok_or_else(|| anyhow!("Could not obtain position from shared playback state"))?;
+            .ok_or_else(|| eyre!("Could not obtain position from shared playback state"))?;
         let track = data
             .track
             .clone()
-            .ok_or_else(|| anyhow!("Could not obtain track data from shared playback state"))?;
+            .ok_or_else(|| eyre!("Could not obtain track data from shared playback state"))?;
 
         println!("{}", track.name.bold());
         println!(

@@ -2,7 +2,7 @@ use std::process::Stdio;
 
 use tokio::process::Command;
 
-use anyhow::{anyhow, Result};
+use color_eyre::eyre::{bail, eyre, Result};
 
 mod metadata;
 
@@ -47,7 +47,7 @@ pub async fn tell_raw(applescript: &[&str]) -> Result<String> {
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
 
     if !success {
-        anyhow::bail!(stderr);
+        bail!(stderr);
     }
 
     Ok(stdout)
@@ -99,7 +99,7 @@ impl std::fmt::Display for PlayerState {
 }
 
 impl std::str::FromStr for PlayerState {
-    type Err = anyhow::Error;
+    type Err = color_eyre::eyre::Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
@@ -141,23 +141,23 @@ pub async fn get_current_track() -> Result<Option<Track>> {
 
         let id = track_data
             .next()
-            .ok_or_else(|| anyhow!("Could not obtain track ID"))?
+            .ok_or_else(|| eyre!("Could not obtain track ID"))?
             .to_owned();
         let name = track_data
             .next()
-            .ok_or_else(|| anyhow!("Could not obtain track name"))?
+            .ok_or_else(|| eyre!("Could not obtain track name"))?
             .to_owned();
         let album = track_data
             .next()
-            .ok_or_else(|| anyhow!("Could not obtain track album"))?
+            .ok_or_else(|| eyre!("Could not obtain track album"))?
             .to_owned();
         let artist = track_data
             .next()
-            .ok_or_else(|| anyhow!("Could not obtain track artist"))?
+            .ok_or_else(|| eyre!("Could not obtain track artist"))?
             .to_owned();
         let duration = track_data
             .next()
-            .ok_or_else(|| anyhow!("Could not obtain track duration"))?
+            .ok_or_else(|| eyre!("Could not obtain track duration"))?
             .to_owned()
             .parse::<f64>()?;
 

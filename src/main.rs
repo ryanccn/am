@@ -4,7 +4,7 @@
 
 use std::io::stdout;
 
-use anyhow::{anyhow, Result};
+use color_eyre::eyre::{eyre, Result};
 
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{generate, Shell};
@@ -97,19 +97,19 @@ async fn concise_now_playing() -> Result<()> {
 
     let name = track_data
         .next()
-        .ok_or_else(|| anyhow!("Could not obtain track name"))?
+        .ok_or_else(|| eyre!("Could not obtain track name"))?
         .to_owned();
     let album = track_data
         .next()
-        .ok_or_else(|| anyhow!("Could not obtain track album"))?
+        .ok_or_else(|| eyre!("Could not obtain track album"))?
         .to_owned();
     let artist = track_data
         .next()
-        .ok_or_else(|| anyhow!("Could not obtain track artist"))?
+        .ok_or_else(|| eyre!("Could not obtain track artist"))?
         .to_owned();
     let duration = track_data
         .next()
-        .ok_or_else(|| anyhow!("Could not obtain track duration"))?
+        .ok_or_else(|| eyre!("Could not obtain track duration"))?
         .to_owned()
         .parse::<f64>()?;
 
@@ -126,6 +126,8 @@ async fn concise_now_playing() -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    color_eyre::install()?;
+
     let args = Cli::parse();
 
     match args.command {

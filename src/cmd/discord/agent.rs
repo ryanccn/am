@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use color_eyre::eyre::Result;
 use owo_colors::OwoColorize;
 use tokio::{fs, process::Command};
 

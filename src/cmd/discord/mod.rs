@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use owo_colors::OwoColorize;
 
-use anyhow::{anyhow, Result};
+use color_eyre::eyre::{eyre, Result};
 use tokio::signal::ctrl_c;
 
 use crate::{
@@ -45,10 +45,10 @@ async fn update_presence(
 
     let position = initial_state
         .next()
-        .ok_or_else(|| anyhow!("Could not obtain player position"))?;
+        .ok_or_else(|| eyre!("Could not obtain player position"))?;
     let player_state = initial_state
         .next()
-        .ok_or_else(|| anyhow!("Could not obtain player state"))?
+        .ok_or_else(|| eyre!("Could not obtain player state"))?
         .parse::<PlayerState>()?;
 
     if player_state != PlayerState::Playing {
@@ -67,7 +67,7 @@ async fn update_presence(
 
     let track = music::get_current_track()
         .await?
-        .ok_or_else(|| anyhow!("Could not obtain track information"))?;
+        .ok_or_else(|| eyre!("Could not obtain track information"))?;
 
     let mut ongoing = false;
 

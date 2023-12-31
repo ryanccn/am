@@ -1,7 +1,7 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use anyhow::{anyhow, Result};
+use color_eyre::eyre::{eyre, Result};
 
 use super::Track;
 
@@ -66,7 +66,7 @@ pub async fn get_metadata(client: &Client, track: &Track) -> Result<Metadata> {
         .artist
         .split(&[',', '&'][..])
         .next()
-        .ok_or_else(|| anyhow!("Could not obtain artist to query with"))?;
+        .ok_or_else(|| eyre!("Could not obtain artist to query with"))?;
 
     let mut artist_artwork: Option<String> = None;
 
@@ -82,7 +82,7 @@ pub async fn get_metadata(client: &Client, track: &Track) -> Result<Metadata> {
         .songs
         .data
         .first()
-        .ok_or_else(|| anyhow!("Could not obtain song metadata"))?;
+        .ok_or_else(|| eyre!("Could not obtain song metadata"))?;
 
     let id: String = song_data.id.clone();
     let album_artwork: String = song_data
