@@ -10,12 +10,11 @@
     nixpkgs,
     ...
   }: let
-    version = self.dirtyShortRev or self.shortRev;
+    version = builtins.substring 0 8 self.lastModifiedDate;
 
     inherit (nixpkgs) lib;
 
     systems = ["x86_64-darwin" "aarch64-darwin"];
-
     forAllSystems = fn: lib.genAttrs systems (s: fn nixpkgs.legacyPackages.${s});
   in {
     checks = forAllSystems (pkgs: let
