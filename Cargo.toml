@@ -14,7 +14,7 @@ repository = "https://github.com/ryanccn/am.git"
 [dependencies]
 async-trait = "0.1.77"
 chrono = "0.4.31"
-clap = { version = "4.4.7", features = ["derive"] }
+clap = { version = "4.5.2", features = ["derive"] }
 clap_complete = "4.4.4"
 color-eyre = "0.6.2"
 crossterm = "0.27.0"
