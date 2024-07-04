@@ -195,10 +195,10 @@ async fn receive_delta(
         }
 
         PlaybackStateDelta::Track(track) => {
-            data.track = track.clone();
+            data.track.clone_from(track);
         }
         PlaybackStateDelta::Playlist(playlist) => {
-            data.playlist = playlist.clone();
+            data.playlist.clone_from(playlist);
         }
 
         PlaybackStateDelta::Position(position) => {

@@ -1,7 +1,3 @@
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::module_name_repetitions)]
-#![deny(unsafe_code)]
-
 use std::io::stdout;
 
 use color_eyre::eyre::{eyre, Result};

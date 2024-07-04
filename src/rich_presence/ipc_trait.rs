@@ -56,13 +56,13 @@ pub trait DiscordIpc {
     /// client.close().await?;
     /// client.reconnect().await?;
     /// ```
-    async fn reconnect(&mut self) -> Result<(), RichPresenceError> {
-        self.close().await?;
-        self.connect_ipc().await?;
-        self.send_handshake().await?;
+    // async fn reconnect(&mut self) -> Result<(), RichPresenceError> {
+    //     self.close().await?;
+    //     self.connect_ipc().await?;
+    //     self.send_handshake().await?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     #[doc(hidden)]
     fn get_client_id(&self) -> &String;

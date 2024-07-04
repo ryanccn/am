@@ -5,28 +5,33 @@ edition = "2021"
 
 description = "A beautiful and feature-packed Apple Music CLI"
 categories = ["command-line-utilities"]
-keywords = ["apple", "music"]
+keywords = ["apple", "macos", "music", "apple-music"]
 authors = ["Ryan Cao <hello@ryanccn.dev>"]
 license = "GPL-3.0-only"
 homepage = "https://github.com/ryanccn/am"
 repository = "https://github.com/ryanccn/am.git"
 
 [dependencies]
-async-trait = "0.1.77"
-chrono = "0.4.35"
-clap = { version = "4.5.2", features = ["derive"] }
-clap_complete = "4.5.1"
-color-eyre = "0.6.2"
+async-trait = "0.1.80"
+chrono = "0.4.38"
+clap = { version = "4.5.8", features = ["derive"] }
+clap_complete = "4.5.7"
+color-eyre = "0.6.3"
 crossterm = "0.27.0"
 owo-colors = "4.0.0"
-reqwest = { version = "0.11.22", features = [
-    "rustls-tls",
-    "serde_json",
-    "json",
-    "brotli",
-], default-features = false }
-serde = { version = "1.0.190", features = ["derive"] }
-serde_json = "1.0.111"
-thiserror = "1.0.57"
-tokio = { version = "1.33.0", features = ["full"] }
-uuid = { version = "1.5.0", features = ["v4"] }
+reqwest = { version = "0.12.5", features = ["rustls-tls", "json", "brotli"], default-features = false }
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.120"
+thiserror = "1.0.61"
+tokio = { version = "1.38.0", features = ["full"] }
+uuid = { version = "1.9.1", features = ["v4"] }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+
+module_name_repetitions = "allow"
+
+[lints.rust]
+unsafe_code = "forbid"
