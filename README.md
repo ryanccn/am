@@ -22,7 +22,7 @@ This GitHub repository contains a flake. Add `github:ryanccn/am` to your flake i
 }
 ```
 
-Then, use the overlay from `overlays.default` and add `am` to your packages. Alternatively, you can use `packages.default` directly.
+Then, use the overlay from `overlays.default` and add `am` to your packages. Alternatively, you can use `packages.{default,am}` directly.
 
 ### Cargo
 

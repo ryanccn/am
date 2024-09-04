@@ -32,10 +32,14 @@ jobs:
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Install cargo-auditable
+        run: cargo install cargo-auditable
+
       - name: Build
-        run: cargo build -r --target ${{ matrix.target }} --locked
+        run: cargo auditable build --release --locked --target ${{ matrix.target }}
         env:
-          RUSTFLAGS: "-C lto=fat -C embed-bitcode=yes -C strip=symbols -C codegen-units=1 -C opt-level=z"
+          CARGO_PROFILE_RELEASE_LTO: "fat"
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "1"
 
       - name: Rename artifact
         run: cp ./target/${{ matrix.target }}/release/am ./am-${{ matrix.target }}

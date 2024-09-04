@@ -1,110 +1,149 @@
 {
-  description = "Minimal Apple Music CLI";
+  description = "A beautiful and feature-packed Apple Music CLI";
+
+  nixConfig = {
+    extra-substituters = [ "https://cache.garnix.io" ];
+    extra-trusted-public-keys = [ "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g=" ];
+  };
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nix-filter.url = "github:numtide/nix-filter";
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    ...
-  }: let
-    version = builtins.substring 0 8 self.lastModifiedDate;
+  outputs =
+    {
+      self,
+      nixpkgs,
+      nix-filter,
+    }:
+    let
+      inherit (nixpkgs) lib;
+      systems = [
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
 
-    inherit (nixpkgs) lib;
+      forAllSystems = lib.genAttrs systems;
+      nixpkgsFor = forAllSystems (system: nixpkgs.legacyPackages.${system});
+    in
+    {
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
 
-    systems = ["x86_64-darwin" "aarch64-darwin"];
-    forAllSystems = fn: lib.genAttrs systems (s: fn nixpkgs.legacyPackages.${s});
-  in {
-    checks = forAllSystems (pkgs: let
-      formatter = self.formatter.${pkgs.system};
-    in {
-      fmt =
-        pkgs.runCommand "check-fmt" {}
-        ''
-          ${pkgs.lib.getExe formatter} --check ${self}
-          touch $out
-        '';
-    });
+          mkFlakeCheck =
+            {
+              name,
+              nativeBuildInputs ? [ ],
+              command,
+            }:
+            pkgs.stdenv.mkDerivation {
+              name = "check-${name}";
+              inherit nativeBuildInputs;
+              inherit (self.packages.${system}.am) src cargoDeps;
 
-    devShells = forAllSystems (pkgs: {
-      default = pkgs.mkShell {
-        packages = with pkgs; [
-          rust-analyzer
-          rustc
-          cargo
-          rustfmt
-        ];
+              buildPhase = ''
+                ${command}
+                touch "$out"
+              '';
 
-        RUST_BACKTRACE = 1;
-        RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
-      };
-    });
-
-    packages = forAllSystems (
-      pkgs: let
-        scope = lib.makeScope pkgs.newScope;
-        fn = final: {p = self.overlays.default final pkgs;};
-        inherit (scope fn) p;
-      in
-        p // {default = p.am;}
-    );
-
-    formatter = forAllSystems (p: p.alejandra);
-
-    overlays.default = _: prev: {
-      am = prev.callPackage ./default.nix {
-        inherit self version;
-        inherit (prev.darwin.apple_sdk_11_0.frameworks) CoreFoundation Security SystemConfiguration;
-        inherit (prev.darwin) IOKit;
-      };
-    };
-
-    homeManagerModules.default = {
-      lib,
-      config,
-      pkgs,
-      ...
-    }: let
-      cfg = config.services.am-discord-rich-presence;
-      inherit (lib) mkEnableOption mkIf mkOption mkPackageOption types;
-    in {
-      options.services.am-discord-rich-presence = {
-        enable = mkEnableOption "am-discord-rich-presence";
-        package = mkPackageOption pkgs "am" {};
-
-        logFile = mkOption {
-          type = types.nullOr types.path;
-          default = null;
-          description = ''
-            Path to where am's Discord presence will store its log file
-          '';
-          example = ''''${config.xdg.cacheHome}/am-discord-rich-presence.log'';
-        };
-      };
-
-      config = mkIf cfg.enable {
-        assertions = [
-          (lib.hm.assertions.assertPlatform
-            "launchd.agents.am-discord-rich-presence"
-            pkgs
-            lib.platforms.darwin)
-        ];
-
-        launchd.agents.am-discord-rich-presence = {
-          enable = true;
-
-          config = {
-            ProgramArguments = ["${lib.getExe cfg.package}" "discord"];
-            KeepAlive = true;
-            RunAtLoad = true;
-
-            StandardOutPath = cfg.logFile;
-            StandardErrorPath = cfg.logFile;
+              doCheck = false;
+              dontInstall = true;
+              dontFixup = true;
+            };
+        in
+        {
+          nixfmt = mkFlakeCheck {
+            name = "nixfmt";
+            nativeBuildInputs = with pkgs; [ nixfmt-rfc-style ];
+            command = "nixfmt --check .";
           };
-        };
+
+          rustfmt = mkFlakeCheck {
+            name = "rustfmt";
+
+            nativeBuildInputs = with pkgs; [
+              cargo
+              rustfmt
+            ];
+
+            command = "cargo fmt --check";
+          };
+
+          clippy = mkFlakeCheck {
+            name = "clippy";
+
+            nativeBuildInputs = with pkgs; [
+              rustPlatform.cargoSetupHook
+              cargo
+              rustc
+              clippy
+              clippy-sarif
+              sarif-fmt
+            ];
+
+            command = ''
+              cargo clippy --all-features --all-targets --tests \
+                --offline --message-format=json \
+                | clippy-sarif | tee $out | sarif-fmt
+            '';
+          };
+        }
+      );
+
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+        in
+        {
+          default = pkgs.mkShell {
+            packages = with pkgs; [
+              rustfmt
+              clippy
+              rust-analyzer
+
+              git-cliff # changelog generator
+              taplo # TOML toolkit
+
+              cargo-audit
+              cargo-bloat
+              cargo-expand
+
+              libiconv
+            ];
+
+            inputsFrom = [ self.packages.${system}.am ];
+
+            env = {
+              RUST_BACKTRACE = 1;
+              RUST_SRC_PATH = toString pkgs.rustPlatform.rustLibSrc;
+            };
+          };
+        }
+      );
+
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+          packages = self.overlays.default null pkgs;
+        in
+        {
+          inherit (packages) am;
+          default = packages.am;
+        }
+        // (lib.attrsets.mapAttrs' (
+          name: value: lib.nameValuePair "check-${name}" value
+        ) self.checks.${system})
+      );
+
+      formatter = forAllSystems (system: nixpkgsFor.${system}.nixfmt-rfc-style);
+
+      overlays.default = _: prev: {
+        am = prev.callPackage ./package.nix { inherit nix-filter self; };
       };
     };
-  };
 }
