@@ -5,6 +5,7 @@ use tokio::process::Command;
 use color_eyre::eyre::{bail, eyre, Result};
 
 mod metadata;
+mod models;
 
 pub use metadata::*;
 

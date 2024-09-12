@@ -140,7 +140,7 @@
       formatter = forAllSystems (system: nixpkgsFor.${system}.nixfmt-rfc-style);
 
       overlays.default = _: prev: {
-        am = prev.callPackage ./package.nix { inherit nix-filter self; };
+        am = prev.callPackage ./default.nix { inherit nix-filter self; };
       };
 
       homeManagerModules.default =

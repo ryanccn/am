@@ -132,11 +132,13 @@ async fn main() -> Result<()> {
             println!("{} playing music", "Started".green());
             concise_now_playing().await?;
         }
+
         Commands::Pause => {
             music::tell("pause").await?;
             println!("{} playing music", "Stopped".red());
             concise_now_playing().await?;
         }
+
         Commands::Toggle => {
             let player_state = music::tell("player state").await?;
 
@@ -156,6 +158,7 @@ async fn main() -> Result<()> {
             println!("{} to current or previous track", "Back tracked".cyan());
             concise_now_playing().await?;
         }
+
         Commands::Forward => {
             music::tell("fast forward").await?;
             println!("{} in current track", "Fast forwarded".cyan());
@@ -167,6 +170,7 @@ async fn main() -> Result<()> {
             println!("{} to next track", "Advanced".magenta());
             concise_now_playing().await?;
         }
+
         Commands::Previous => {
             music::tell("previous track").await?;
             println!("{} to previous track", "Returned".magenta());

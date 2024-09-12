@@ -115,24 +115,18 @@ async fn update_presence(
         if let Some(metadata) = &metadata {
             activity = activity.buttons(vec![
                 Button::new("Listen on Apple Music", &metadata.share_url)?,
-                Button::new(
-                    "View on SongLink",
-                    &format!("https://song.link/i/{}", metadata.id),
-                )?,
+                Button::new("View on SongLink", &metadata.song_link)?,
             ])?;
         }
 
         client.set_activity(activity).await?;
 
         println!(
-            "{} {} · {}{}",
+            "{} {} {} {}",
             "Song updated".blue(),
             &track.name,
+            "·".dimmed(),
             &track.artist,
-            match &metadata {
-                Some(metadata) => format!(" {}", metadata.id.dimmed()),
-                None => String::new(),
-            }
         );
 
         state.last_position = Some(position);
