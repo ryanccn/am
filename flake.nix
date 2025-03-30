@@ -35,7 +35,7 @@
             pkgs.stdenv.mkDerivation (
               {
                 name = "check-${name}";
-                inherit (self.packages.${system}.am) src cargoDeps;
+                inherit (self.packages.${system}.am) src;
 
                 buildPhase = ''
                   ${command}
@@ -87,6 +87,8 @@
               clippy-sarif
               sarif-fmt
             ];
+
+            inherit (self.packages.${system}.am) cargoDeps;
           };
         }
       );
