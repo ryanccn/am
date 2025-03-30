@@ -2,7 +2,7 @@ use std::process::Stdio;
 
 use tokio::process::Command;
 
-use color_eyre::eyre::{bail, eyre, Result};
+use color_eyre::eyre::{Result, bail, eyre};
 
 mod metadata;
 mod models;

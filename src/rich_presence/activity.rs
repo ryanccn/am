@@ -30,8 +30,9 @@ pub struct Activity {
     buttons: Option<Vec<Button>>,
 }
 
+#[allow(clippy::ref_option)]
 fn skip_serializing_buttons(value: &Option<Vec<Button>>) -> bool {
-    !value.clone().is_some_and(|v| !v.is_empty())
+    value.clone().is_none_or(|v| v.is_empty())
 }
 
 /// A struct representing an `Activity`'s timestamps

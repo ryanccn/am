@@ -4,7 +4,7 @@ use crate::rich_presence::{
     pack_unpack::{pack, unpack},
 };
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use uuid::Uuid;
 
@@ -36,33 +36,6 @@ pub trait DiscordIpc {
 
         Ok(())
     }
-
-    /// Reconnects to the Discord IPC.
-    ///
-    /// This method closes the client's active connection,
-    /// then re-connects it and re-sends a handshake.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` variant if the client
-    /// failed to connect to the socket, or if it failed to
-    /// send a handshake.
-    ///
-    /// # Examples
-    /// ```
-    /// let mut client = crate::rich_presence::new_client("<some client id>")?;
-    /// client.connect().await?;
-    ///
-    /// client.close().await?;
-    /// client.reconnect().await?;
-    /// ```
-    // async fn reconnect(&mut self) -> Result<(), RichPresenceError> {
-    //     self.close().await?;
-    //     self.connect_ipc().await?;
-    //     self.send_handshake().await?;
-
-    //     Ok(())
-    // }
 
     #[doc(hidden)]
     fn get_client_id(&self) -> &String;

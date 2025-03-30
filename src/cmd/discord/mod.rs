@@ -2,14 +2,14 @@ use std::time::Duration;
 
 use owo_colors::OwoColorize;
 
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use tokio::signal::ctrl_c;
 
 use crate::{
     music::{self, PlayerState},
     rich_presence::{
-        activity::{Activity, Assets, Button, Timestamps},
         DiscordIpc, DiscordIpcClient, RichPresenceError,
+        activity::{Activity, Assets, Button, Timestamps},
     },
 };
 
@@ -82,7 +82,13 @@ async fn update_presence(
     }
 
     if !ongoing {
-        let metadata = music::get_metadata(http_client, &track).await.ok();
+        let metadata = match music::get_metadata(http_client, &track).await {
+            Ok(v) => Some(v),
+            Err(e) => {
+                eprintln!("failed to fetch metadata: {e:?}");
+                None
+            }
+        };
 
         let now_ts = chrono::offset::Local::now().timestamp();
         let start_ts = (now_ts as f64) - position;

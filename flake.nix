@@ -1,21 +1,14 @@
 {
   description = "A beautiful and feature-packed Apple Music CLI";
 
-  nixConfig = {
-    extra-substituters = [ "https://cache.garnix.io" ];
-    extra-trusted-public-keys = [ "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g=" ];
-  };
-
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    nix-filter.url = "github:numtide/nix-filter";
   };
 
   outputs =
     {
       self,
       nixpkgs,
-      nix-filter,
     }:
     let
       inherit (nixpkgs) lib;
@@ -36,44 +29,55 @@
           mkFlakeCheck =
             {
               name,
-              nativeBuildInputs ? [ ],
               command,
-            }:
-            pkgs.stdenv.mkDerivation {
-              name = "check-${name}";
-              inherit nativeBuildInputs;
-              inherit (self.packages.${system}.am) src cargoDeps;
+              ...
+            }@args:
+            pkgs.stdenv.mkDerivation (
+              {
+                name = "check-${name}";
+                inherit (self.packages.${system}.am) src cargoDeps;
 
-              buildPhase = ''
-                ${command}
-                touch "$out"
-              '';
+                buildPhase = ''
+                  ${command}
+                  touch "$out"
+                '';
 
-              doCheck = false;
-              dontInstall = true;
-              dontFixup = true;
-            };
+                doCheck = false;
+                dontInstall = true;
+                dontFixup = true;
+              }
+              // (removeAttrs args [
+                "name"
+                "command"
+              ])
+            );
         in
         {
           nixfmt = mkFlakeCheck {
             name = "nixfmt";
+            command = "find . -name '*.nix' -exec nixfmt --check {} +";
+
+            src = self;
             nativeBuildInputs = with pkgs; [ nixfmt-rfc-style ];
-            command = "nixfmt --check .";
           };
 
           rustfmt = mkFlakeCheck {
             name = "rustfmt";
+            command = "cargo fmt --check";
 
             nativeBuildInputs = with pkgs; [
               cargo
               rustfmt
             ];
-
-            command = "cargo fmt --check";
           };
 
           clippy = mkFlakeCheck {
             name = "clippy";
+            command = ''
+              cargo clippy --all-features --all-targets --tests \
+                --offline --message-format=json \
+                | clippy-sarif | tee $out | sarif-fmt
+            '';
 
             nativeBuildInputs = with pkgs; [
               rustPlatform.cargoSetupHook
@@ -83,12 +87,6 @@
               clippy-sarif
               sarif-fmt
             ];
-
-            command = ''
-              cargo clippy --all-features --all-targets --tests \
-                --offline --message-format=json \
-                | clippy-sarif | tee $out | sarif-fmt
-            '';
           };
         }
       );
@@ -104,12 +102,6 @@
               rustfmt
               clippy
               rust-analyzer
-
-              cargo-audit
-              cargo-bloat
-              cargo-expand
-
-              libiconv
             ];
 
             inputsFrom = [ self.packages.${system}.am ];
@@ -132,15 +124,12 @@
           inherit (packages) am;
           default = packages.am;
         }
-        // (lib.attrsets.mapAttrs' (
-          name: value: lib.nameValuePair "check-${name}" value
-        ) self.checks.${system})
       );
 
       formatter = forAllSystems (system: nixpkgsFor.${system}.nixfmt-rfc-style);
 
       overlays.default = _: prev: {
-        am = prev.callPackage ./default.nix { inherit nix-filter self; };
+        am = prev.callPackage ./package.nix { inherit self; };
       };
 
       homeManagerModules.default =

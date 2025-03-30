@@ -1,9 +1,9 @@
 use std::io::stdout;
 
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 
 use clap::{CommandFactory, Parser, Subcommand};
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 use owo_colors::OwoColorize;
 
 mod cmd;

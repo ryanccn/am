@@ -4,7 +4,7 @@ use crate::{
 };
 
 use clap::Parser;
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use crossterm::{cursor, execute, terminal};
 use owo_colors::OwoColorize;
 

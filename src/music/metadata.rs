@@ -3,7 +3,7 @@ use std::sync::{LazyLock, OnceLock};
 use regex::Regex;
 use reqwest::Client;
 
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 
 use super::Track;
 
@@ -16,7 +16,10 @@ static BUNDLE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static TOKEN_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"\w+="([A-Za-z0-9-_]*\.[A-Za-z0-9-_]*\.[A-Za-z0-9-_]*)",\w+="x-apple-jingle-correlation-key""#).unwrap()
+    Regex::new(
+        r#"Promise.allSettled\([A-Za-z_$][\w$]*\)}const [A-Za-z_$][\w$]*="([A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+)""#,
+    )
+    .unwrap()
 });
 
 #[derive(Debug)]
@@ -27,7 +30,7 @@ pub struct Metadata {
     pub song_link: String,
 }
 
-async fn fetch_token(client: &Client) -> Result<String> {
+pub async fn fetch_token(client: &Client) -> Result<String> {
     if let Some(token) = TOKEN_CACHE.get() {
         return Ok(token.to_owned());
     }
