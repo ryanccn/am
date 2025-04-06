@@ -11,7 +11,7 @@ use uuid::Uuid;
 /// A client that connects to and communicates with the Discord IPC.
 ///
 /// Implemented via the [`DiscordIpcClient`](struct@crate::rich_presence::DiscordIpcClient) struct.
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 #[async_trait]
 pub trait DiscordIpc {
     /// Connects the client to the Discord IPC.

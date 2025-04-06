@@ -1,9 +1,9 @@
-use owo_colors::OwoColorize;
+use owo_colors::OwoColorize as _;
 
 const HOUR: i32 = 60 * 60;
 const MINUTE: i32 = 60;
 
-pub fn format_duration(duration_secs: i32, yellow: bool) -> String {
+pub fn format_duration(duration_secs: i32, cyan: bool) -> String {
     let mut duration_secs = duration_secs;
     let mut str = String::new();
     let mut has_started = false;
@@ -11,10 +11,10 @@ pub fn format_duration(duration_secs: i32, yellow: bool) -> String {
     if has_started || duration_secs >= HOUR {
         let hours = duration_secs / HOUR;
 
-        if yellow {
+        if cyan {
             str = format!("{}{:.0}{}", str, hours, "h".dimmed());
         } else {
-            str = format!("{}{:.0}{}", str, hours.yellow(), "h".yellow().dimmed());
+            str = format!("{}{:.0}{}", str, hours.cyan(), "h".cyan().dimmed());
         }
 
         duration_secs -= hours * HOUR;
@@ -24,8 +24,8 @@ pub fn format_duration(duration_secs: i32, yellow: bool) -> String {
     if has_started || duration_secs >= MINUTE {
         let mins = duration_secs / MINUTE;
 
-        if yellow {
-            str = format!("{}{:.0}{}", str, mins.yellow(), "m".yellow().dimmed());
+        if cyan {
+            str = format!("{}{:.0}{}", str, mins.cyan(), "m".cyan().dimmed());
         } else {
             str = format!("{}{:.0}{}", str, mins, "m".dimmed());
         }
@@ -34,13 +34,8 @@ pub fn format_duration(duration_secs: i32, yellow: bool) -> String {
         // has_started = true;
     }
 
-    if yellow {
-        str = format!(
-            "{}{:.0}{}",
-            str,
-            duration_secs.yellow(),
-            "s".yellow().dimmed()
-        );
+    if cyan {
+        str = format!("{}{:.0}{}", str, duration_secs.cyan(), "s".cyan().dimmed());
     } else {
         str = format!("{}{:.0}{}", str, duration_secs, "s".dimmed());
     }

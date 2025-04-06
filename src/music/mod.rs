@@ -2,7 +2,7 @@ use std::process::Stdio;
 
 use tokio::process::Command;
 
-use color_eyre::eyre::{Result, bail, eyre};
+use eyre::{Result, bail, eyre};
 
 mod metadata;
 mod models;
@@ -35,13 +35,11 @@ pub struct Playlist {
 }
 
 pub async fn tell_raw(applescript: &[&str]) -> Result<String> {
-    let mut osascript_cmd = Command::new("osascript");
+    let mut osascript = Command::new("osascript");
 
-    for a in applescript {
-        osascript_cmd.arg("-e").arg(a);
-    }
+    osascript.args(applescript.iter().flat_map(|expr| ["-e", expr]));
 
-    let output = osascript_cmd.output().await?;
+    let output = osascript.output().await?;
     let success = output.status.success();
 
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -100,9 +98,9 @@ impl std::fmt::Display for PlayerState {
 }
 
 impl std::str::FromStr for PlayerState {
-    type Err = color_eyre::eyre::Error;
+    type Err = eyre::Report;
 
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "stopped" => Ok(Self::Stopped),
             "playing" => Ok(Self::Playing),

@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
-
-use color_eyre::eyre::Result;
-use owo_colors::OwoColorize;
 use tokio::{fs, process::Command};
 
-const AGENT_ID: &str = "dev.ryanccn.am.discord-presence";
+use anstream::println;
+use eyre::Result;
+use owo_colors::OwoColorize as _;
+
+const AGENT_ID: &str = "dev.ryanccn.am.discord";
 
 fn get_agent_path() -> Result<PathBuf> {
     Ok(Path::new(&std::env::var("HOME")?)
@@ -20,7 +21,7 @@ fn get_plist() -> Result<String> {
     let log_file_path = PathBuf::from(std::env::var("HOME")?)
         .join("Library")
         .join("Logs")
-        .join("am-discord-rich-presence.log");
+        .join("am-discord.log");
     let log_file = log_file_path.to_string_lossy();
 
     Ok(format!(r#"

@@ -1,36 +1,31 @@
 # `am`
 
-A beautiful and feature-packed Apple Music CLI!
-
-Written in [Rust](https://www.rust-lang.org/).
+A beautiful and feature-packed Apple Music CLI, written in [Rust](https://www.rust-lang.org/).
 
 ## Installation
 
-### Nix (recommended)
+### Cargo
+
+You can install `am` with `cargo install` or `cargo binstall` from crates.io.
+
+```bash
+cargo binstall am
+```
+
+### Nix
 
 This GitHub repository contains a flake. Add `github:ryanccn/am` to your flake inputs:
 
 ```nix
 {
-  inputs = {
-    # ...other inputs
-    am = {
-      url = "github:ryanccn/am";
-      inputs.nixpkgs.follows = "nixpkgs";
-    }
+  am = {
+    url = "github:ryanccn/am";
+    inputs.nixpkgs.follows = "nixpkgs";
   }
 }
 ```
 
 Then, use the overlay from `overlays.default` and add `am` to your packages. Alternatively, you can use `packages.{default,am}` directly.
-
-### Cargo
-
-You can install `am` through `cargo` from crates.io.
-
-```console
-$ cargo install am
-```
 
 ### Manual download
 
@@ -42,32 +37,10 @@ Dequarantine them with `xattr -d com.apple.quarantine <path>` and make them exec
 
 - Beautiful now playing display
 - Playback controls (play, pause, toggle, resume, back, forward, next, previous)
+- Song.link generation
 - Discord rich presence
 - Launch agent installation
 - Shell completions
-
-## Screenshots
-
-<details>
-  <summary><code>am now</code></summary>
-
-![am now](/.github/images/now.png)
-
-</details>
-
-<details>
-  <summary><code>am next</code></summary>
-
-![am next](/.github/images/next.png)
-
-</details>
-
-<details>
-  <summary><code>am discord</code></summary>
-
-![am discord](/.github/images/discord.png)
-
-</details>
 
 ## Discord presence launch agent
 
@@ -77,21 +50,19 @@ Through a macOS launch agent, the Discord rich presence can be made to run in th
 
 You can install the Discord presence as a launch agent by running `am discord install`. Note that this depends on the executable/symlink staying in the same place; if it moves to a different place, run the command again.
 
-The `am` process running in the launch agent will log to `~/Library/Logs/am-discord-rich-presence.log`.
+The `am` process running in the launch agent will log to `~/Library/Logs/am-discord.log`.
 
 You can uninstall the launch agent with `am discord uninstall`.
 
 ### Home Manager
 
-This repository's flake also provides a Home Manager module at `homeManagerModules.default`. This module exposes a service `am-discord-rich-presence` that you can enable.
+This repository's flake also provides a Home Manager module at `homeModules.am-discord`. This module exposes a service `am-discord` that you can enable.
 
 ```nix
 {
-  services.am-discord-rich-presence = {
+  services.am-discord = {
     enable = true;
-
-    # optional
-    # logFile = "${config.xdg.cacheHome}/am-discord-rich-presence.log";
+    # logFile = "${config.xdg.cacheHome}/am-discord.log";
   }
 }
 ```

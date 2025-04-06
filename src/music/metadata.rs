@@ -1,11 +1,10 @@
 use std::sync::{LazyLock, OnceLock};
 
+use eyre::{Result, eyre};
 use regex::Regex;
-use reqwest::Client;
 
-use color_eyre::eyre::{Result, eyre};
-
-use super::Track;
+use super::{Track, models::AppleMusicData};
+use crate::http::HTTP;
 
 static TOKEN_CACHE: OnceLock<String> = OnceLock::new();
 
@@ -30,12 +29,12 @@ pub struct Metadata {
     pub song_link: String,
 }
 
-pub async fn fetch_token(client: &Client) -> Result<String> {
+pub async fn fetch_token() -> Result<String> {
     if let Some(token) = TOKEN_CACHE.get() {
         return Ok(token.to_owned());
     }
 
-    let html = client
+    let html = HTTP
         .get("https://music.apple.com/")
         .send()
         .await?
@@ -50,7 +49,7 @@ pub async fn fetch_token(client: &Client) -> Result<String> {
     let mut bundle_url = "https://music.apple.com/".parse::<reqwest::Url>()?;
     bundle_url.set_path(bundle_path);
 
-    let bundle = client
+    let bundle = HTTP
         .get(bundle_url)
         .send()
         .await?
@@ -67,8 +66,8 @@ pub async fn fetch_token(client: &Client) -> Result<String> {
     Ok(token.to_owned())
 }
 
-pub async fn get_metadata(client: &Client, track: &Track) -> Result<Metadata> {
-    let token = fetch_token(client).await?;
+pub async fn fetch_metadata(track: &Track) -> Result<Metadata> {
+    let token = fetch_token().await?;
     let song_key = track.name.clone() + " " + &track.album + " " + &track.artist;
 
     let mut api_url =
@@ -83,7 +82,7 @@ pub async fn get_metadata(client: &Client, track: &Track) -> Result<Metadata> {
         .append_pair("term", &song_key)
         .append_pair("include[songs]", "artists");
 
-    let data: super::models::AppleMusicData = client
+    let data: AppleMusicData = HTTP
         .get(api_url)
         .bearer_auth(&token)
         .header("accept", "*/*")

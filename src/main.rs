@@ -1,13 +1,15 @@
+use anstream::println;
 use std::io::stdout;
 
-use color_eyre::eyre::{Result, eyre};
+use eyre::{Result, eyre};
+use owo_colors::OwoColorize as _;
 
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{Shell, generate};
-use owo_colors::OwoColorize;
 
 mod cmd;
 mod format;
+mod http;
 mod music;
 mod rich_presence;
 
@@ -49,6 +51,9 @@ enum Commands {
     #[command(visible_aliases = ["prev"])]
     Previous,
 
+    /// Show the Song.link for the current track
+    SongLink,
+
     /// Connect to Discord rich presence
     Discord {
         #[command(subcommand)]
@@ -74,7 +79,7 @@ enum DiscordCommands {
 #[cfg(not(target_os = "macos"))]
 compile_error!("am doesn't work on non-macOS platforms!");
 
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 async fn concise_now_playing() -> Result<()> {
     let track_data = music::tell_raw(&[
         r#"set output to """#,
@@ -185,6 +190,15 @@ async fn main() -> Result<()> {
 
         Commands::Now(options) => {
             cmd::now(options).await?;
+        }
+
+        Commands::SongLink => {
+            if let Some(track) = music::get_current_track().await? {
+                let metadata = music::fetch_metadata(&track).await?;
+                println!("{}", metadata.song_link);
+            } else {
+                println!("{} playing music", "Not".red());
+            }
         }
 
         Commands::Discord { command } => match command {

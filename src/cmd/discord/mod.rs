@@ -1,12 +1,12 @@
 use std::time::Duration;
+use tokio::{signal, time};
 
-use owo_colors::OwoColorize;
-
-use color_eyre::eyre::{Result, eyre};
-use tokio::signal::ctrl_c;
+use anstream::{eprintln, println};
+use eyre::{Result, eyre};
+use owo_colors::OwoColorize as _;
 
 use crate::{
-    music::{self, PlayerState},
+    music,
     rich_presence::{
         DiscordIpc, DiscordIpcClient, RichPresenceError,
         activity::{Activity, Assets, Button, Timestamps},
@@ -22,12 +22,8 @@ struct ActivityState {
     is_idle: bool,
 }
 
-#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
-async fn update_presence(
-    client: &mut DiscordIpcClient,
-    http_client: &reqwest::Client,
-    state: &mut ActivityState,
-) -> Result<()> {
+#[expect(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+async fn update_presence(client: &mut DiscordIpcClient, state: &mut ActivityState) -> Result<()> {
     if !music::is_running().await? {
         if !state.is_idle {
             println!("{} any songs", "Not playing".yellow());
@@ -38,7 +34,7 @@ async fn update_presence(
 
         client.clear_activity().await?;
         return Ok(());
-    };
+    }
 
     let initial_state = music::tell("get {player position, player state}").await?;
     let mut initial_state = initial_state.split(", ");
@@ -49,9 +45,9 @@ async fn update_presence(
     let player_state = initial_state
         .next()
         .ok_or_else(|| eyre!("Could not obtain player state"))?
-        .parse::<PlayerState>()?;
+        .parse::<music::PlayerState>()?;
 
-    if player_state != PlayerState::Playing {
+    if player_state != music::PlayerState::Playing {
         if !state.is_idle {
             println!("{} any songs", "Not playing".yellow());
             state.last_position = None;
@@ -82,7 +78,7 @@ async fn update_presence(
     }
 
     if !ongoing {
-        let metadata = match music::get_metadata(http_client, &track).await {
+        let metadata = match music::fetch_metadata(&track).await {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("failed to fetch metadata: {e:?}");
@@ -138,7 +134,7 @@ async fn update_presence(
         state.last_position = Some(position);
         state.last_song_id = Some(track.id.clone());
         state.is_idle = false;
-    };
+    }
 
     Ok(())
 }
@@ -156,15 +152,12 @@ pub async fn discord() -> Result<()> {
     };
 
     let mut last_connect_failed = false;
-
-    let http_client = reqwest::Client::new();
-
-    let mut intvl = tokio::time::interval(Duration::from_secs(5));
+    let mut intvl = time::interval(Duration::from_secs(5));
 
     loop {
         tokio::select! {
             _ = intvl.tick() => {
-                if let Err(err) = update_presence(&mut client, &http_client, &mut state).await {
+                if let Err(err) = update_presence(&mut client, &mut state).await {
                     match err.downcast_ref::<RichPresenceError>() {
                         Some(RichPresenceError::CouldNotConnect | RichPresenceError::WriteSocketFailed) => {
                             if !last_connect_failed {
@@ -182,13 +175,13 @@ pub async fn discord() -> Result<()> {
                 }
             }
 
-            _ = ctrl_c() => {
+            _ = signal::ctrl_c() => {
                 break;
             }
         }
     }
 
-    println!("{} Discord presence", "Shutting down".magenta());
+    println!("{} Discord presence", "Shutting down".yellow());
     client.clear_activity().await?;
     client.close().await?;
 

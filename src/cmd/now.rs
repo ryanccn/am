@@ -3,13 +3,17 @@ use crate::{
     music::{self, PlayerState, Playlist, Track},
 };
 
+use anstream::{eprintln, println};
 use clap::Parser;
-use color_eyre::eyre::{Result, eyre};
 use crossterm::{cursor, execute, terminal};
-use owo_colors::OwoColorize;
+use eyre::{Result, eyre};
+use owo_colors::OwoColorize as _;
 
-use std::{io::stdout, time::Duration};
-use tokio::{signal::ctrl_c, sync::mpsc};
+use std::{
+    io::{Write as _, stdout},
+    time::Duration,
+};
+use tokio::{signal::ctrl_c, sync::mpsc, task};
 
 #[derive(Parser, Debug)]
 pub struct NowOptions {
@@ -59,8 +63,7 @@ async fn update_state(
             r#"tell application "Music""#,
             r"set track_id to database id of current track",
             r"set player_position to player position",
-            r"set playlist_name to name of current playlist",
-            r#"set output to "" & track_id & "\n" & player_position & "\n" & playlist_name"#,
+            r#"set output to "" & track_id & "\n" & player_position"#,
             r"end tell",
             r"return output",
         ])
@@ -76,10 +79,11 @@ async fn update_state(
             .next()
             .ok_or_else(|| eyre!("Could not obtain player position"))?
             .to_owned();
-        let playlist_name = data
-            .next()
-            .ok_or_else(|| eyre!("Could not obtain playlist name"))?
-            .to_owned();
+
+        let playlist_name = music::tell("name of current playlist")
+            .await
+            .ok()
+            .map(|s| s.trim().to_owned());
 
         let player_position = player_position.parse::<f64>().ok();
 
@@ -95,19 +99,19 @@ async fn update_state(
             tx.send(PlaybackStateDelta::Track(track)).await?;
         }
 
-        if playlist_name.is_empty() {
-            tx.send(PlaybackStateDelta::Playlist(None)).await?;
-        } else {
+        if let Some(playlist_name) = playlist_name {
             let playlist_duration = music::tell("get {duration} of current playlist")
                 .await?
                 .parse::<i32>()?;
 
             tx.send(PlaybackStateDelta::Playlist(Some(Playlist {
-                name: playlist_name.to_string(),
+                name: playlist_name.clone(),
                 duration: playlist_duration,
             })))
             .await?;
-        };
+        } else {
+            tx.send(PlaybackStateDelta::Playlist(None)).await?;
+        }
     }
 
     tx.send(PlaybackStateDelta::Render).await?;
@@ -116,9 +120,9 @@ async fn update_state(
 }
 
 const BAR_CHAR: &str = "━";
-#[allow(clippy::cast_possible_truncation, clippy::cast_lossless)]
+#[expect(clippy::cast_possible_truncation, clippy::cast_lossless)]
 fn make_bar(n: f64, width: Option<i32>) -> Result<String> {
-    let width = width.unwrap_or(20);
+    let width = width.unwrap_or(30);
 
     let part_one = (n * (width as f64)).floor() as i32;
     let part_two = width - part_one;
@@ -130,7 +134,7 @@ fn make_bar(n: f64, width: Option<i32>) -> Result<String> {
     Ok(ret)
 }
 
-#[allow(clippy::unused_async, clippy::cast_possible_truncation)]
+#[expect(clippy::unused_async, clippy::cast_possible_truncation)]
 async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()> {
     if options.watch {
         execute!(
@@ -151,8 +155,11 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
             .clone()
             .ok_or_else(|| eyre!("Could not obtain track data from shared playback state"))?;
 
-        println!("{}", track.name.bold());
-        println!(
+        let mut stdout = anstream::stdout().lock();
+
+        writeln!(stdout, "{}", track.name.bold())?;
+        writeln!(
+            stdout,
             "{} {} {} {}",
             if options.no_nerd_fonts {
                 data.state.to_string()
@@ -162,11 +169,17 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
             format::format_duration(position as i32, false),
             make_bar(position / track.duration, options.bar_width)?,
             format::format_duration(track.duration as i32, true),
-        );
-        println!("{} · {}", track.artist.blue(), track.album.magenta());
+        )?;
+        writeln!(
+            stdout,
+            "{} · {}",
+            track.artist.blue(),
+            track.album.magenta()
+        )?;
 
         if let Some(playlist) = &data.playlist {
-            println!(
+            writeln!(
+                stdout,
                 "{}",
                 format!(
                     "Playlist: {} ({})",
@@ -174,11 +187,11 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
                     format::format_duration_plain(playlist.duration)
                 )
                 .dimmed()
-            );
-        } else {
-            println!("{}", "No playlist".dimmed());
-        };
-    };
+            )?;
+        }
+
+        stdout.flush()?;
+    }
 
     Ok(())
 }
@@ -218,33 +231,35 @@ async fn receive_delta(
                 tx_request_track.send(track.id != *id).await.unwrap();
             } else {
                 tx_request_track.send(true).await.unwrap();
-            };
+            }
         }
 
         PlaybackStateDelta::Render => {
             if let Err(err) = update_display(data, options).await {
                 eprintln!("{err}");
-            };
+            }
         }
-    };
+    }
 
     Ok(())
 }
 
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub async fn now(options: NowOptions) -> Result<()> {
     let watch = options.watch;
 
     if watch {
         execute!(stdout(), terminal::EnterAlternateScreen, cursor::Hide)?;
-    };
+    }
 
     let (tx, mut rx) = mpsc::channel::<PlaybackStateDelta>(20);
     let (tx_request_track, mut rx_request_track) = mpsc::channel::<bool>(20);
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
 
-    let state_task = tokio::spawn({
+    let mut tasks = task::JoinSet::<()>::new();
+
+    tasks.spawn({
         let tx = tx.clone();
         let mut shutdown_rx = shutdown_rx.clone();
 
@@ -264,7 +279,7 @@ pub async fn now(options: NowOptions) -> Result<()> {
 
     let playback_tick_period_ms = 250.0;
 
-    let playback_tick_task = tokio::spawn({
+    tasks.spawn({
         let mut shutdown_rx = shutdown_rx.clone();
         let tx = tx.clone();
 
@@ -283,7 +298,7 @@ pub async fn now(options: NowOptions) -> Result<()> {
         }
     });
 
-    let display_task = tokio::spawn({
+    tasks.spawn({
         let mut shutdown_rx = shutdown_rx.clone();
 
         async move {
@@ -305,7 +320,7 @@ pub async fn now(options: NowOptions) -> Result<()> {
                                     break;
                                 }
                             }
-                        };
+                        }
                     }
 
                     _ = shutdown_rx.changed() => break,
@@ -314,18 +329,13 @@ pub async fn now(options: NowOptions) -> Result<()> {
         }
     });
 
-    let ctrlc_task = tokio::spawn(async move {
+    tasks.spawn(async move {
         if ctrl_c().await.is_ok() {
             let _ = shutdown_tx.send(());
         }
     });
 
-    tokio::select!(
-        _ = state_task => {},
-        _ = playback_tick_task => {},
-        _ = display_task => {},
-        _ = ctrlc_task => {},
-    );
+    tasks.join_all().await;
 
     if watch {
         execute!(stdout(), terminal::LeaveAlternateScreen, cursor::Show)?;

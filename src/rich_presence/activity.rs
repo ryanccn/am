@@ -30,7 +30,7 @@ pub struct Activity {
     buttons: Option<Vec<Button>>,
 }
 
-#[allow(clippy::ref_option)]
+#[expect(clippy::ref_option)]
 fn skip_serializing_buttons(value: &Option<Vec<Button>>) -> bool {
     value.clone().is_none_or(|v| v.is_empty())
 }
@@ -102,7 +102,7 @@ pub struct Button {
     url: String,
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 impl Activity {
     /// Creates a new `Activity`
     pub fn new() -> Self {
@@ -163,7 +163,7 @@ impl Activity {
             return Err(RichPresenceError::TooManyButtons(buttons.len()));
         } else {
             self.buttons = Some(buttons);
-        };
+        }
 
         Ok(self)
     }
@@ -175,7 +175,6 @@ impl Default for Activity {
     }
 }
 
-#[allow(dead_code)]
 impl Timestamps {
     /// Creates a new `Timestamps`
     pub fn new() -> Self {
@@ -204,7 +203,7 @@ impl Default for Timestamps {
     }
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 impl Party {
     /// Creates a new `Party`
     pub fn new() -> Self {
@@ -239,7 +238,6 @@ impl Default for Party {
     }
 }
 
-#[allow(dead_code)]
 impl Assets {
     /// Creates a new `Assets`
     pub fn new() -> Self {
@@ -286,7 +284,7 @@ impl Default for Assets {
     }
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 impl Secrets {
     /// Creates a new `Secrets`
     pub fn new() -> Self {
@@ -322,7 +320,6 @@ impl Default for Secrets {
     }
 }
 
-#[allow(dead_code)]
 impl Button {
     /// Creates a new `Button` with the given label and URL
     ///
