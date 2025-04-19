@@ -3,7 +3,7 @@ use crate::{
     music::{self, PlayerState, Playlist, Track},
 };
 
-use anstream::{eprintln, println};
+use anstream::println;
 use clap::Parser;
 use crossterm::{cursor, execute, terminal};
 use eyre::{Result, eyre};
@@ -11,13 +11,16 @@ use owo_colors::OwoColorize as _;
 
 use std::{
     io::{Write as _, stdout},
-    time::Duration,
+    time::{Duration, Instant},
 };
-use tokio::{signal::ctrl_c, sync::mpsc, task};
+use tokio::{
+    sync::{mpsc, watch},
+    task,
+};
 
 #[derive(Parser, Debug)]
 pub struct NowOptions {
-    /// Switch to an alternate screen and update now playing until interrupted
+    /// Show an keyboard-interactive, full-screen terminal UI
     #[arg(short, long)]
     pub watch: bool,
 
@@ -58,6 +61,8 @@ async fn update_state(
     tx.send(PlaybackStateDelta::State(player_state)).await?;
 
     if player_state != PlayerState::Stopped {
+        let time_start = Instant::now();
+
         let data = music::tell_raw(&[
             r#"set output to """#,
             r#"tell application "Music""#,
@@ -68,6 +73,8 @@ async fn update_state(
             r"return output",
         ])
         .await?;
+
+        let time_latency = time_start.elapsed().as_secs_f64();
 
         let mut data = data.split('\n');
 
@@ -85,7 +92,10 @@ async fn update_state(
             .ok()
             .map(|s| s.trim().to_owned());
 
-        let player_position = player_position.parse::<f64>().ok();
+        let player_position = player_position
+            .parse::<f64>()
+            .ok()
+            .map(|p| p + time_latency);
 
         tx.send(PlaybackStateDelta::Position(player_position))
             .await?;
@@ -139,58 +149,52 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
     if options.watch {
         execute!(
             stdout(),
-            cursor::MoveTo(0, 0),
-            terminal::Clear(terminal::ClearType::All)
+            cursor::RestorePosition,
+            terminal::Clear(terminal::ClearType::FromCursorDown),
         )?;
     }
 
     if data.state == PlayerState::Stopped {
         println!("Playback is {}", data.state.red());
-    } else {
-        let position = data
-            .position
-            .ok_or_else(|| eyre!("Could not obtain position from shared playback state"))?;
-        let track = data
-            .track
-            .clone()
-            .ok_or_else(|| eyre!("Could not obtain track data from shared playback state"))?;
+    } else if let Some(position) = &data.position {
+        if let Some(track) = &data.track {
+            let mut stdout = anstream::stdout().lock();
 
-        let mut stdout = anstream::stdout().lock();
-
-        writeln!(stdout, "{}", track.name.bold())?;
-        writeln!(
-            stdout,
-            "{} {} {} {}",
-            if options.no_nerd_fonts {
-                data.state.to_string()
-            } else {
-                data.state.to_icon()
-            },
-            format::format_duration(position as i32, false),
-            make_bar(position / track.duration, options.bar_width)?,
-            format::format_duration(track.duration as i32, true),
-        )?;
-        writeln!(
-            stdout,
-            "{} · {}",
-            track.artist.blue(),
-            track.album.magenta()
-        )?;
-
-        if let Some(playlist) = &data.playlist {
+            writeln!(stdout, "{}", track.name.bold())?;
             writeln!(
                 stdout,
-                "{}",
-                format!(
-                    "Playlist: {} ({})",
-                    playlist.name,
-                    format::format_duration_plain(playlist.duration)
-                )
-                .dimmed()
+                "{} {} {} {}",
+                if options.no_nerd_fonts {
+                    data.state.to_string()
+                } else {
+                    data.state.to_icon()
+                },
+                format::format_duration(*position as i32, false),
+                make_bar(position / track.duration, options.bar_width)?,
+                format::format_duration(track.duration as i32, true),
             )?;
-        }
+            writeln!(
+                stdout,
+                "{} · {}",
+                track.artist.blue(),
+                track.album.magenta()
+            )?;
 
-        stdout.flush()?;
+            if let Some(playlist) = &data.playlist {
+                writeln!(
+                    stdout,
+                    "{}",
+                    format!(
+                        "Playlist: {} ({})",
+                        playlist.name,
+                        format::format_duration_plain(playlist.duration)
+                    )
+                    .dimmed()
+                )?;
+            }
+
+            stdout.flush()?;
+        }
     }
 
     Ok(())
@@ -210,6 +214,7 @@ async fn receive_delta(
         PlaybackStateDelta::Track(track) => {
             data.track.clone_from(track);
         }
+
         PlaybackStateDelta::Playlist(playlist) => {
             data.playlist.clone_from(playlist);
         }
@@ -235,71 +240,69 @@ async fn receive_delta(
         }
 
         PlaybackStateDelta::Render => {
-            if let Err(err) = update_display(data, options).await {
-                eprintln!("{err}");
-            }
+            update_display(data, options).await?;
         }
     }
 
     Ok(())
 }
 
-#[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub async fn now(options: NowOptions) -> Result<()> {
     let watch = options.watch;
 
     if watch {
-        execute!(stdout(), terminal::EnterAlternateScreen, cursor::Hide)?;
+        execute!(stdout(), cursor::SavePosition)?;
     }
 
     let (tx, mut rx) = mpsc::channel::<PlaybackStateDelta>(20);
     let (tx_request_track, mut rx_request_track) = mpsc::channel::<bool>(20);
 
-    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
+    let (shutdown_tx, shutdown_rx) = watch::channel(());
 
-    let mut tasks = task::JoinSet::<()>::new();
+    let mut tasks = task::JoinSet::<Result<()>>::new();
 
     tasks.spawn({
         let tx = tx.clone();
         let mut shutdown_rx = shutdown_rx.clone();
 
         async move {
-            let mut intvl = tokio::time::interval(Duration::from_secs(1));
+            let mut intvl = tokio::time::interval(Duration::from_millis(5000));
 
             loop {
                 tokio::select! {
-                    _ = intvl.tick() => if let Err(err) = update_state(&tx, &mut rx_request_track).await {
-                        eprintln!("{err}");
-                    },
+                    _ = intvl.tick() => update_state(&tx, &mut rx_request_track).await?,
                     _ = shutdown_rx.changed() => break,
                 }
             }
+
+            Ok(())
         }
     });
-
-    let playback_tick_period_ms = 250.0;
 
     tasks.spawn({
         let mut shutdown_rx = shutdown_rx.clone();
         let tx = tx.clone();
 
         async move {
-            let mut intvl =
-                tokio::time::interval(Duration::from_millis(playback_tick_period_ms as u64));
+            let mut intvl = tokio::time::interval(Duration::from_millis(250));
 
             loop {
                 tokio::select! {
                     _ = intvl.tick() => {
-                        tx.send(PlaybackStateDelta::PositionTick).await.unwrap();
+                        tx.send(PlaybackStateDelta::PositionTick).await?;
+                        tx.send(PlaybackStateDelta::Render).await?;
                     }
                     _ = shutdown_rx.changed() => break,
                 }
             }
+
+            Ok(())
         }
     });
 
     tasks.spawn({
         let mut shutdown_rx = shutdown_rx.clone();
+        let shutdown_tx = shutdown_tx.clone();
 
         async move {
             let mut local_state = PlaybackState {
@@ -313,33 +316,28 @@ pub async fn now(options: NowOptions) -> Result<()> {
                 tokio::select! {
                     delta = rx.recv() => {
                         if let Some(delta) = delta {
-                            receive_delta(&mut local_state, &delta, &options, &tx_request_track).await.unwrap();
+                            receive_delta(&mut local_state, &delta, &options, &tx_request_track).await?;
 
-                            if let PlaybackStateDelta::Render = delta  {
+                            if let PlaybackStateDelta::Render = delta {
                                 if !options.watch {
-                                    break;
+                                    let _ = shutdown_tx.send(());
                                 }
                             }
                         }
                     }
-
                     _ = shutdown_rx.changed() => break,
                 };
             }
+
+            Ok(())
         }
     });
 
-    tasks.spawn(async move {
-        if ctrl_c().await.is_ok() {
-            let _ = shutdown_tx.send(());
-        }
-    });
-
-    tasks.join_all().await;
-
-    if watch {
-        execute!(stdout(), terminal::LeaveAlternateScreen, cursor::Show)?;
-    }
+    tasks
+        .join_all()
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>>>()?;
 
     Ok(())
 }
