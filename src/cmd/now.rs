@@ -39,6 +39,7 @@ struct PlaybackState {
     position: Option<f64>,
     track: Option<Track>,
     playlist: Option<Playlist>,
+    mystery_counter: i64,
 }
 
 #[derive(Debug)]
@@ -156,45 +157,45 @@ async fn update_display(data: &PlaybackState, options: &NowOptions) -> Result<()
 
     if data.state == PlayerState::Stopped {
         println!("Playback is {}", data.state.red());
-    } else if let Some(position) = &data.position {
-        if let Some(track) = &data.track {
-            let mut stdout = anstream::stdout().lock();
+    } else if let Some(position) = &data.position
+        && let Some(track) = &data.track
+    {
+        let mut stdout = anstream::stdout().lock();
 
-            writeln!(stdout, "{}", track.name.bold())?;
+        writeln!(stdout, "{}", track.name.bold())?;
+        writeln!(
+            stdout,
+            "{} {} {} {}",
+            if options.no_nerd_fonts {
+                data.state.to_string()
+            } else {
+                data.state.to_icon()
+            },
+            format::format_duration(*position as i32, false),
+            make_bar(position / track.duration, options.bar_width)?,
+            format::format_duration(track.duration as i32, true),
+        )?;
+        writeln!(
+            stdout,
+            "{} · {}",
+            track.artist.blue(),
+            track.album.magenta()
+        )?;
+
+        if let Some(playlist) = &data.playlist {
             writeln!(
                 stdout,
-                "{} {} {} {}",
-                if options.no_nerd_fonts {
-                    data.state.to_string()
-                } else {
-                    data.state.to_icon()
-                },
-                format::format_duration(*position as i32, false),
-                make_bar(position / track.duration, options.bar_width)?,
-                format::format_duration(track.duration as i32, true),
+                "{}",
+                format!(
+                    "Playlist: {} ({})",
+                    playlist.name,
+                    format::format_duration_plain(playlist.duration)
+                )
+                .dimmed()
             )?;
-            writeln!(
-                stdout,
-                "{} · {}",
-                track.artist.blue(),
-                track.album.magenta()
-            )?;
-
-            if let Some(playlist) = &data.playlist {
-                writeln!(
-                    stdout,
-                    "{}",
-                    format!(
-                        "Playlist: {} ({})",
-                        playlist.name,
-                        format::format_duration_plain(playlist.duration)
-                    )
-                    .dimmed()
-                )?;
-            }
-
-            stdout.flush()?;
         }
+
+        stdout.flush()?;
     }
 
     Ok(())
@@ -209,25 +210,29 @@ async fn receive_delta(
     match delta {
         PlaybackStateDelta::State(state) => {
             data.state = *state;
+            data.mystery_counter += 1;
         }
 
         PlaybackStateDelta::Track(track) => {
             data.track.clone_from(track);
+            data.mystery_counter += 1;
         }
 
         PlaybackStateDelta::Playlist(playlist) => {
             data.playlist.clone_from(playlist);
+            data.mystery_counter += 1;
         }
 
         PlaybackStateDelta::Position(position) => {
             data.position = *position;
+            data.mystery_counter += 1;
         }
 
         PlaybackStateDelta::PositionTick => {
-            if data.state == PlayerState::Playing {
-                if let Some(position) = data.position {
-                    data.position = Some(position + 0.25);
-                }
+            if data.state == PlayerState::Playing
+                && let Some(position) = data.position
+            {
+                data.position = Some(position + 0.25);
             }
         }
 
@@ -240,7 +245,9 @@ async fn receive_delta(
         }
 
         PlaybackStateDelta::Render => {
-            update_display(data, options).await?;
+            if options.watch || data.mystery_counter >= 4 {
+                update_display(data, options).await?;
+            }
         }
     }
 
@@ -310,6 +317,7 @@ pub async fn now(options: NowOptions) -> Result<()> {
                 playlist: None,
                 position: None,
                 track: None,
+                mystery_counter: 0,
             };
 
             loop {
@@ -318,11 +326,11 @@ pub async fn now(options: NowOptions) -> Result<()> {
                         if let Some(delta) = delta {
                             receive_delta(&mut local_state, &delta, &options, &tx_request_track).await?;
 
-                            if let PlaybackStateDelta::Render = delta {
-                                if !options.watch {
+                            if let PlaybackStateDelta::Render = delta
+                                && !options.watch
+                                && local_state.mystery_counter >= 4 {
                                     let _ = shutdown_tx.send(());
                                 }
-                            }
                         }
                     }
                     _ = shutdown_rx.changed() => break,
@@ -333,11 +341,11 @@ pub async fn now(options: NowOptions) -> Result<()> {
         }
     });
 
-    tasks
+    let _ = tasks
         .join_all()
         .await
         .into_iter()
-        .collect::<Result<Vec<_>>>()?;
+        .collect::<Result<Vec<_>>>();
 
     Ok(())
 }

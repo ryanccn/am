@@ -67,14 +67,12 @@ async fn update_presence(client: &mut DiscordIpcClient, state: &mut ActivityStat
 
     let mut ongoing = false;
 
-    if let Some(last_song_id) = &state.last_song_id {
-        if *last_song_id == track.id {
-            if let Some(last_position) = &state.last_position {
-                if last_position <= &position {
-                    ongoing = true;
-                }
-            }
-        }
+    if let Some(last_song_id) = &state.last_song_id
+        && *last_song_id == track.id
+        && let Some(last_position) = &state.last_position
+        && last_position <= &position
+    {
+        ongoing = true;
     }
 
     if !ongoing {
