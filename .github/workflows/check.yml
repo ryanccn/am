@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Ryan Cao <hello@ryanccn.dev>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 name: Check
 
 on:
@@ -63,3 +67,18 @@ jobs:
 
       - name: Check
         run: nix build --fallback --print-build-logs '.#checks.aarch64-darwin.nixfmt'
+
+  reuse:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # ratchet:actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@c134e4c9e34bac6cab09cf239815f9339aaaf84e # ratchet:cachix/install-nix-action@v31
+
+      - name: Check
+        run: nix build --fallback --print-build-logs '.#checks.aarch64-darwin.reuse'

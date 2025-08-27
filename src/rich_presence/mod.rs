@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2025 Ryan Cao <hello@ryanccn.dev>
+// SPDX-FileCopyrightText: 2022 sardonicism-04
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! This library provides easy access to the Discord IPC.
 //!
 //! It provides implementations for both Unix and Windows

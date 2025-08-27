@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 Ryan Cao <hello@ryanccn.dev>
+
+SPDX-License-Identifier: GPL-3.0-or-later
+--->
+
 # `am`
 
 A beautiful and feature-packed Apple Music CLI, written in [Rust](https://www.rust-lang.org/).

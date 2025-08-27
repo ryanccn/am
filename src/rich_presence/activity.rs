@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2025 Ryan Cao <hello@ryanccn.dev>
+// SPDX-FileCopyrightText: 2022 sardonicism-04
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 //! Provides an interface for building activities to send
 //! to Discord via [`DiscordIpc::set_activity`](crate::rich_presence::DiscordIpc::set_activity).
 use super::RichPresenceError;

@@ -1,5 +1,8 @@
-use std::process::Stdio;
+// SPDX-FileCopyrightText: 2025 Ryan Cao <hello@ryanccn.dev>
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::process::Stdio;
 use tokio::process::Command;
 
 use eyre::{Result, bail, eyre};

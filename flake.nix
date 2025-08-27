@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Ryan Cao <hello@ryanccn.dev>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 {
   description = "A beautiful and feature-packed Apple Music CLI";
 
@@ -89,6 +93,14 @@
             ];
 
             inherit (self.packages.${system}.am) cargoDeps;
+          };
+
+          reuse = mkFlakeCheck {
+            name = "reuse";
+            command = "reuse lint";
+
+            src = self;
+            nativeBuildInputs = with pkgs; [ reuse ];
           };
         }
       );
