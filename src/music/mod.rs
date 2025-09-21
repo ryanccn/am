@@ -161,6 +161,7 @@ pub async fn get_current_track() -> Result<Option<Track>> {
             .next()
             .ok_or_else(|| eyre!("Could not obtain track duration"))?
             .to_owned()
+            .replace(",", ".")
             .parse::<f64>()?;
 
         Ok(Some(Track {

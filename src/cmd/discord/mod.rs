@@ -63,7 +63,9 @@ async fn update_presence(client: &mut DiscordIpcClient, state: &mut ActivityStat
         return Ok(());
     }
 
-    let position = position.parse::<f64>()?;
+    let position = position
+        .replace(",", ".")
+        .parse::<f64>()?;
 
     let track = music::get_current_track()
         .await?
