@@ -8,8 +8,7 @@ on:
   push:
     tags: ["v*.*.*"]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   build:
@@ -20,6 +19,9 @@ jobs:
       disable-cache: true
 
   publish:
+    permissions:
+      contents: read
+      id-token: write
     needs: ["build"]
     runs-on: macos-latest
 
