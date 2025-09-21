@@ -98,7 +98,7 @@ async fn update_state(
             .map(|s| s.trim().to_owned());
 
         let player_position = player_position
-            .replace(",", ".")
+            .replace(',', ".")
             .parse::<f64>()
             .ok()
             .map(|p| p + time_latency);

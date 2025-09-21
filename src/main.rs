@@ -116,7 +116,7 @@ async fn concise_now_playing() -> Result<()> {
         .next()
         .ok_or_else(|| eyre!("Could not obtain track duration"))?
         .to_owned()
-        .replace(",", ".")
+        .replace(',', ".")
         .parse::<f64>()?;
 
     println!(
