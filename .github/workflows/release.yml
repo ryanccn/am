@@ -37,7 +37,7 @@ jobs:
           toolchain: stable
 
       - name: Authenticate with crates.io
-        uses: rust-lang/crates-io-auth-action@63a7064947ceca9989005e118db3a5fecdc9259f # ratchet:rust-lang/crates-io-auth-action@v1
+        uses: rust-lang/crates-io-auth-action@e919bc7605cde86df457cf5b93c5e103838bd879 # ratchet:rust-lang/crates-io-auth-action@v1
         id: auth
 
       - name: Publish
