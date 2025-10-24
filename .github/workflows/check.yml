@@ -55,7 +55,7 @@ jobs:
         uses: cachix/install-nix-action@fd24c48048070c1be9acd18c9d369a83f0fe94d7 # ratchet:cachix/install-nix-action@v31
 
       - name: Check
-        run: nix build --fallback --print-build-logs '.#checks.x86_64-linux.${{ matrix.check }}'
+        run: nix build --fallback --print-build-logs '.#checks.aarch64-darwin.${{ matrix.check }}'
 
       - name: Upload Clippy results
         if: ${{ matrix.check == 'clippy' }}
