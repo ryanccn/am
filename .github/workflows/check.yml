@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   collect:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     outputs:
       checks: ${{ steps.checks.outputs.checks }}
 
@@ -40,7 +40,7 @@ jobs:
         check: ${{ fromJson(needs.collect.outputs.checks) }}
       fail-fast: false
 
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     permissions:
       contents: read
       security-events: write
