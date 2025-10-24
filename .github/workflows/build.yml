@@ -46,7 +46,7 @@ jobs:
         if: ${{ inputs.disable-cache != true }}
 
       - name: Install cargo-auditable
-        uses: taiki-e/install-action@0e09747a63ae497bf945b3dcaf38fef0050d0109 # ratchet:taiki-e/install-action@v2
+        uses: taiki-e/install-action@1c7b1d35fcc8f6525be0cbdacbf5977079a3f94c # ratchet:taiki-e/install-action@v2
         with:
           tool: cargo-auditable
 
@@ -60,7 +60,7 @@ jobs:
         run: cp ./target/${{ matrix.target }}/release/am ./am-${{ matrix.target }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # ratchet:actions/upload-artifact@v5
         with:
           name: am-${{ matrix.target }}
           path: ./am-${{ matrix.target }}
