@@ -16,7 +16,7 @@ homepage = "https://github.com/ryanccn/am"
 repository = "https://github.com/ryanccn/am.git"
 
 [dependencies]
-anstream = "0.6.20"
+anstream = "0.6.21"
 async-trait = "0.1.89"
 chrono = "0.4.42"
 clap = { version = "4.5.48", features = ["derive"] }
