@@ -20,7 +20,7 @@ anstream = "0.6.21"
 async-trait = "0.1.89"
 chrono = "0.4.42"
 clap = { version = "4.5.53", features = ["derive"] }
-clap_complete = "4.5.62"
+clap_complete = "4.5.63"
 color-eyre = "0.6.5"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 eyre = "0.6.12"
