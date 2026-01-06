@@ -19,8 +19,8 @@ repository = "https://github.com/ryanccn/am.git"
 anstream = "0.6.21"
 async-trait = "0.1.89"
 chrono = "0.4.42"
-clap = { version = "4.5.53", features = ["derive"] }
-clap_complete = "4.5.62"
+clap = { version = "4.5.54", features = ["derive"] }
+clap_complete = "4.5.64"
 color-eyre = "0.6.5"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 eyre = "0.6.12"
@@ -31,7 +31,7 @@ reqwest = { version = "0.12.28", default-features = false, features = ["charset"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.148"
 thiserror = "2.0.17"
-tokio = { version = "1.48.0", features = ["full"] }
+tokio = { version = "1.49.0", features = ["full"] }
 uuid = { version = "1.19.0", features = ["v4"] }
 
 [lints.clippy]
