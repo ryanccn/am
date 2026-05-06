@@ -15,14 +15,12 @@ static TOKEN_CACHE: OnceLock<String> = OnceLock::new();
 static USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
 
 static BUNDLE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"<script type="module" crossorigin src="([a-zA-Z0-9.\-/]+)"></script>"#).unwrap()
+    Regex::new(r#"<script type="module" crossorigin src="([a-zA-Z0-9.\-/~]+)"></script>"#).unwrap()
 });
 
 static TOKEN_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r#"Promise.allSettled\([A-Za-z_$][\w$]*\)}const [A-Za-z_$][\w$]*="([A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+)""#,
-    )
-    .unwrap()
+    Regex::new(r#"const [A-Za-z_$][\w$]*="([A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+)",[A-Za-z_$][\w$]*="x-apple-jingle-correlation-key""#)
+        .unwrap()
 });
 
 #[derive(Debug)]
@@ -48,7 +46,7 @@ pub async fn fetch_token() -> Result<String> {
 
     let bundle_path = &BUNDLE_REGEX
         .captures(&html)
-        .ok_or_else(|| eyre!("could not obtain bundle for API token"))?[1];
+        .ok_or_else(|| eyre!("could not obtain bundle for Apple Music API token"))?[1];
 
     let mut bundle_url = "https://music.apple.com/".parse::<reqwest::Url>()?;
     bundle_url.set_path(bundle_path);
@@ -63,7 +61,7 @@ pub async fn fetch_token() -> Result<String> {
 
     let token = &TOKEN_REGEX
         .captures(&bundle)
-        .ok_or_else(|| eyre!("could not find API token in bundle"))?[1];
+        .ok_or_else(|| eyre!("could not find Apple Music API token in bundle"))?[1];
 
     TOKEN_CACHE.set(token.to_owned()).unwrap();
 

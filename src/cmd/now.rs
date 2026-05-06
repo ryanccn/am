@@ -278,7 +278,7 @@ pub async fn now(options: NowOptions) -> Result<()> {
         let mut shutdown_rx = shutdown_rx.clone();
 
         async move {
-            let mut intvl = tokio::time::interval(Duration::from_millis(5000));
+            let mut intvl = tokio::time::interval(Duration::from_secs(5));
 
             loop {
                 tokio::select! {

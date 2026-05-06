@@ -31,22 +31,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@5d458579430fc14a04a08a1e7d3694f545e91ce6 # ratchet:dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # ratchet:dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           targets: ${{ matrix.target }}
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # ratchet:Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # ratchet:Swatinem/rust-cache@v2
         if: ${{ inputs.disable-cache != true }}
 
       - name: Install cargo-auditable
-        uses: taiki-e/install-action@f8d25fb8a2df08dcd3cead89780d572767b8655f # ratchet:taiki-e/install-action@v2
+        uses: taiki-e/install-action@cca35edeb1d01366c2843b68fc3ca441446d73d3 # ratchet:taiki-e/install-action@v2
         with:
           tool: cargo-auditable
 
@@ -60,7 +60,7 @@ jobs:
         run: cp ./target/${{ matrix.target }}/release/am ./am-${{ matrix.target }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # ratchet:actions/upload-artifact@v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7
         with:
           name: am-${{ matrix.target }}
           path: ./am-${{ matrix.target }}
