@@ -43,7 +43,7 @@
                 description = ''
                   Path to where am's Discord presence will store its log file
                 '';
-                example = ''''${config.xdg.cacheHome}/am-discord.log'';
+                example = "\${config.xdg.cacheHome}/am-discord.log";
               };
             };
 
