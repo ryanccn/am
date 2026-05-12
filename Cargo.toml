@@ -20,7 +20,7 @@ anstream = "1.0.0"
 async-trait = "0.1.89"
 chrono = "0.4.44"
 clap = { version = "4.6.1", features = ["derive"] }
-clap_complete = "4.6.3"
+clap_complete = "4.6.5"
 color-eyre = "0.6.5"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 eyre = "0.6.12"
@@ -31,7 +31,7 @@ reqwest = { version = "0.13.3", features = ["json", "deflate", "gzip", "brotli",
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 thiserror = "2.0.18"
-tokio = { version = "1.52.2", features = ["full"] }
+tokio = { version = "1.52.3", features = ["full"] }
 uuid = { version = "1.23.1", features = ["v4"] }
 
 [lints.clippy]
